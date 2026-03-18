@@ -79,6 +79,8 @@ export default function BookAppointmentPage() {
 
       // Get user details for staff
       const userIds = staffData.map(s => s.user_id)
+      console.log('🔍 Looking up user IDs:', userIds)
+      
       const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('id, first_name, last_name, role')
@@ -88,14 +90,22 @@ export default function BookAppointmentPage() {
 
       if (usersError) {
         console.error('❌ Users query error:', usersError)
+        // Continue anyway with fallback names
+      }
+
+      if (!usersData || usersData.length === 0) {
+        console.warn('⚠️ No user data found for staff members. This might be an RLS issue.')
       }
 
       // Combine staff with user data
       const staffWithUsers = staffData.map(staff => {
         const user = usersData?.find(u => u.id === staff.user_id)
+        if (!user) {
+          console.warn(`⚠️ No user found for staff ID ${staff.id}, user_id: ${staff.user_id}`)
+        }
         return {
           ...staff,
-          user: user || { first_name: 'Unknown', last_name: 'Staff', role: 'staff' }
+          user: user || null
         }
       })
 
@@ -136,14 +146,18 @@ export default function BookAppointmentPage() {
 
             if (!isBooked) {
               // Found available slot!
-              console.log(`✅ Found slot: ${dateStr} at ${timeStr} with ${staff.user.first_name}`)
+              const staffFirstName = staff.user?.first_name || 'Staff'
+              const staffLastName = staff.user?.last_name || 'Member'
+              const staffRole = staff.user?.role || 'staff'
+              
+              console.log(`✅ Found slot: ${dateStr} at ${timeStr} with ${staffFirstName} ${staffLastName}`)
               
               setNextAvailableSlot({
                 date: dateStr,
                 time: timeStr,
                 staffId: staff.id,
-                staffName: `${staff.user.first_name} ${staff.user.last_name}`,
-                staffRole: staff.user.role,
+                staffName: `${staffFirstName} ${staffLastName}`,
+                staffRole: staffRole,
                 displayDate: searchDate.toLocaleDateString('en-US', { 
                   weekday: 'long', 
                   year: 'numeric', 
