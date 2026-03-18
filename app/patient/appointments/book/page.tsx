@@ -52,14 +52,44 @@ export default function BookAppointmentPage() {
     try {
       console.log('🔍 Searching for appointment in department:', selectedDepartment)
 
-      // Get all staff in this department
-      const { data: staffData, error: staffError } = await supabase
-        .from('staff')
-        .select(`
-          id,
-          user_id
-        `)
-        .eq('department_id', selectedDepartment)
+      // Check if this is an emergency department
+      const { data: deptData } = await supabase
+        .from('departments')
+        .select('name, is_emergency')
+        .eq('id', selectedDepartment)
+        .single()
+
+      const isEmergency = deptData?.is_emergency || deptData?.name === 'Emergency'
+      console.log(`🚨 Emergency department: ${isEmergency}`)
+
+      let staffData, staffError
+
+      if (isEmergency) {
+        // For emergency, get ALL staff (doctors, nurses, pharmacists, lab techs, receptionists)
+        console.log('🚨 Emergency: Searching ALL staff members')
+        const { data, error } = await supabase
+          .from('staff')
+          .select(`
+            id,
+            user_id
+          `)
+
+        staffData = data
+        staffError = error
+      } else {
+        // For regular appointments, get staff in specific department
+        console.log('📋 Regular appointment: Searching department staff')
+        const { data, error } = await supabase
+          .from('staff')
+          .select(`
+            id,
+            user_id
+          `)
+          .eq('department_id', selectedDepartment)
+
+        staffData = data
+        staffError = error
+      }
 
       console.log('📋 Staff query result:', { staffData, staffError })
 
@@ -69,8 +99,8 @@ export default function BookAppointmentPage() {
       }
 
       if (!staffData || staffData.length === 0) {
-        console.log('⚠️ No staff found in department')
-        setError('No staff available in this department. Please contact admin to assign staff.')
+        console.log('⚠️ No staff found')
+        setError('No staff available. Please contact admin to assign staff.')
         setSearching(false)
         return
       }
@@ -111,16 +141,20 @@ export default function BookAppointmentPage() {
 
       console.log('👨‍⚕️ Staff with user details:', staffWithUsers)
 
-      // Start searching from today
-      const today = new Date()
+      // Start searching from today, but only future time slots
+      const now = new Date()
+      const currentHour = now.getHours()
+      const currentDate = now.toISOString().split('T')[0]
       const maxDaysToSearch = 30 // Search up to 30 days ahead
       
-      console.log(`📅 Searching ${maxDaysToSearch} days starting from ${today.toDateString()}`)
+      console.log(`📅 Searching ${maxDaysToSearch} days starting from ${now.toDateString()}`)
+      console.log(`⏰ Current time: ${currentHour}:00`)
 
       for (let dayOffset = 0; dayOffset < maxDaysToSearch; dayOffset++) {
-        const searchDate = new Date(today)
-        searchDate.setDate(today.getDate() + dayOffset)
+        const searchDate = new Date(now)
+        searchDate.setDate(now.getDate() + dayOffset)
         const dateStr = searchDate.toISOString().split('T')[0]
+        const isToday = dateStr === currentDate
 
         // Get all appointments for this date
         const staffIds = staffWithUsers.map(s => s.id)
@@ -136,6 +170,12 @@ export default function BookAppointmentPage() {
         // Working hours: 8 AM to 5 PM (each appointment is 1 hour)
         // Last appointment starts at 4 PM (ends at 5 PM)
         for (let hour = 8; hour < 17; hour++) {
+          // Skip past hours if searching today
+          if (isToday && hour <= currentHour) {
+            console.log(`⏭️ Skipping ${hour}:00 (past time)`)
+            continue
+          }
+
           const timeStr = `${hour.toString().padStart(2, '0')}:00:00`
           
           // Find available staff for this time slot
@@ -146,9 +186,11 @@ export default function BookAppointmentPage() {
 
             if (!isBooked) {
               // Found available slot!
-              const staffFirstName = staff.user?.first_name || 'Staff'
-              const staffLastName = staff.user?.last_name || 'Member'
-              const staffRole = staff.user?.role || 'staff'
+              // Safely extract user info with proper null checks
+              const userInfo = staff.user
+              const staffFirstName = userInfo?.first_name || 'Staff'
+              const staffLastName = userInfo?.last_name || 'Member'
+              const staffRole = userInfo?.role || 'staff'
               
               console.log(`✅ Found slot: ${dateStr} at ${timeStr} with ${staffFirstName} ${staffLastName}`)
               
@@ -158,6 +200,7 @@ export default function BookAppointmentPage() {
                 staffId: staff.id,
                 staffName: `${staffFirstName} ${staffLastName}`,
                 staffRole: staffRole,
+                isEmergency: isEmergency,
                 displayDate: searchDate.toLocaleDateString('en-US', { 
                   weekday: 'long', 
                   year: 'numeric', 
@@ -204,6 +247,14 @@ export default function BookAppointmentPage() {
       if (!patientData) throw new Error('Patient profile not found')
 
       if (!nextAvailableSlot) throw new Error('No appointment slot available')
+
+      // Double-check the appointment is in the future
+      const appointmentDateTime = new Date(`${nextAvailableSlot.date}T${nextAvailableSlot.time}`)
+      const now = new Date()
+      
+      if (appointmentDateTime <= now) {
+        throw new Error('Cannot book appointments in the past. Please select a service type again to find a future slot.')
+      }
 
       const { error: insertError } = await supabase
         .from('appointments')
@@ -297,36 +348,39 @@ export default function BookAppointmentPage() {
             )}
 
             {nextAvailableSlot && !searching && (
-              <div className="bg-green-50 border border-green-200 p-4 rounded-md space-y-3">
-                <p className="text-sm font-semibold text-green-900">
-                  ✓ Next Available Appointment Found!
+              <div className={`${nextAvailableSlot.isEmergency ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border p-4 rounded-md space-y-3`}>
+                <p className={`text-sm font-semibold ${nextAvailableSlot.isEmergency ? 'text-red-900' : 'text-green-900'}`}>
+                  {nextAvailableSlot.isEmergency ? '🚨 Emergency Appointment Found!' : '✓ Next Available Appointment Found!'}
                 </p>
                 
                 <div className="space-y-2">
                   <div className="flex items-start gap-3">
-                    <Calendar className="h-5 w-5 text-green-700 mt-0.5" />
+                    <Calendar className={`h-5 w-5 ${nextAvailableSlot.isEmergency ? 'text-red-700' : 'text-green-700'} mt-0.5`} />
                     <div>
-                      <p className="text-sm font-medium text-green-900">Date</p>
-                      <p className="text-sm text-green-700">{nextAvailableSlot.displayDate}</p>
+                      <p className={`text-sm font-medium ${nextAvailableSlot.isEmergency ? 'text-red-900' : 'text-green-900'}`}>Date</p>
+                      <p className={`text-sm ${nextAvailableSlot.isEmergency ? 'text-red-700' : 'text-green-700'}`}>{nextAvailableSlot.displayDate}</p>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <Clock className="h-5 w-5 text-green-700 mt-0.5" />
+                    <Clock className={`h-5 w-5 ${nextAvailableSlot.isEmergency ? 'text-red-700' : 'text-green-700'} mt-0.5`} />
                     <div>
-                      <p className="text-sm font-medium text-green-900">Time</p>
-                      <p className="text-sm text-green-700">{nextAvailableSlot.displayTime}</p>
-                      <p className="text-xs text-green-600">Duration: 1 hour</p>
+                      <p className={`text-sm font-medium ${nextAvailableSlot.isEmergency ? 'text-red-900' : 'text-green-900'}`}>Time</p>
+                      <p className={`text-sm ${nextAvailableSlot.isEmergency ? 'text-red-700' : 'text-green-700'}`}>{nextAvailableSlot.displayTime}</p>
+                      <p className={`text-xs ${nextAvailableSlot.isEmergency ? 'text-red-600' : 'text-green-600'}`}>Duration: 1 hour</p>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <User className="h-5 w-5 text-green-700 mt-0.5" />
+                    <User className={`h-5 w-5 ${nextAvailableSlot.isEmergency ? 'text-red-700' : 'text-green-700'} mt-0.5`} />
                     <div>
-                      <p className="text-sm font-medium text-green-900">Assigned Staff</p>
-                      <p className="text-sm text-green-700">
+                      <p className={`text-sm font-medium ${nextAvailableSlot.isEmergency ? 'text-red-900' : 'text-green-900'}`}>Assigned Staff</p>
+                      <p className={`text-sm ${nextAvailableSlot.isEmergency ? 'text-red-700' : 'text-green-700'}`}>
                         {nextAvailableSlot.staffName} ({nextAvailableSlot.staffRole})
                       </p>
+                      {nextAvailableSlot.isEmergency && (
+                        <p className="text-xs text-red-600 mt-1">Emergency - First available staff member</p>
+                      )}
                     </div>
                   </div>
                 </div>

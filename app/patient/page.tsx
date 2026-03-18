@@ -49,7 +49,7 @@ export default function PatientDashboard() {
         .in('status', ['scheduled', 'confirmed'])
 
       // Get next appointment
-      const { data: nextAppt } = await supabase
+      const { data: nextAppt, error: nextApptError } = await supabase
         .from('appointments')
         .select(`
           *,
@@ -65,7 +65,16 @@ export default function PatientDashboard() {
         .order('appointment_date', { ascending: true })
         .order('appointment_time', { ascending: true })
         .limit(1)
-        .single()
+        .maybeSingle()
+
+      if (nextApptError) {
+        console.error('Error fetching next appointment:', nextApptError)
+      }
+
+      // Only set if we have valid data
+      if (nextAppt && nextAppt.doctor && nextAppt.doctor.user) {
+        setNextAppointment(nextAppt)
+      }
 
       // Get medical records count
       const { count: recordsCount } = await supabase
@@ -85,8 +94,6 @@ export default function PatientDashboard() {
         totalRecords: recordsCount || 0,
         pendingBills: billsCount || 0,
       })
-
-      setNextAppointment(nextAppt)
     } catch (error) {
       console.error('Error loading dashboard:', error)
     } finally {
@@ -128,7 +135,7 @@ export default function PatientDashboard() {
       </div>
 
       {/* Next Appointment */}
-      {nextAppointment && nextAppointment.doctor && nextAppointment.doctor.user && (
+      {nextAppointment && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -141,9 +148,11 @@ export default function PatientDashboard() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-semibold text-lg">
-                    Dr. {nextAppointment.doctor.user.first_name} {nextAppointment.doctor.user.last_name}
+                    {nextAppointment.doctor?.user ? 
+                      `Dr. ${nextAppointment.doctor.user.first_name} ${nextAppointment.doctor.user.last_name}` : 
+                      'Doctor'}
                   </p>
-                  {nextAppointment.doctor.specialization && (
+                  {nextAppointment.doctor?.specialization && (
                     <p className="text-gray-600">{nextAppointment.doctor.specialization}</p>
                   )}
                   {nextAppointment.department?.name && (
