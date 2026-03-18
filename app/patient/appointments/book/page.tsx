@@ -40,46 +40,25 @@ export default function BookAppointmentPage() {
 
   async function loadSpecializations() {
     try {
-      // Get all staff with specializations
-      const { data: staffData, error: staffError } = await supabase
-        .from('staff')
-        .select('specialization, user_id')
-        .not('specialization', 'is', null)
-
-      if (staffError) {
-        console.error('Error loading staff:', staffError)
-        return
-      }
-
-      if (!staffData || staffData.length === 0) {
-        console.log('No staff found')
-        return
-      }
-
-      // Get user IDs
-      const userIds = staffData.map(s => s.user_id)
-
-      // Get active doctor users
-      const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select('id, role, is_active')
-        .in('id', userIds)
-        .eq('role', 'doctor')
+      // Get all active departments
+      const { data: deptData, error: deptError } = await supabase
+        .from('departments')
+        .select('id, name')
         .eq('is_active', true)
+        .order('name')
 
-      if (usersError) {
-        console.error('Error loading users:', usersError)
+      if (deptError) {
+        console.error('Error loading departments:', deptError)
         return
       }
 
-      // Filter staff to only include active doctors
-      const activeUserIds = new Set(usersData?.map(u => u.id) || [])
-      const activeStaff = staffData.filter(s => activeUserIds.has(s.user_id))
+      if (!deptData || deptData.length === 0) {
+        console.log('No departments found')
+        return
+      }
 
-      // Get unique specializations
-      const unique = [...new Set(activeStaff.map(d => d.specialization).filter(Boolean))]
-      console.log('Available specializations:', unique)
-      setSpecializations(unique)
+      console.log('Available departments:', deptData.map(d => d.name))
+      setSpecializations(deptData.map(d => d.name))
     } catch (error) {
       console.error('Error in loadSpecializations:', error)
     }
@@ -87,15 +66,23 @@ export default function BookAppointmentPage() {
 
   async function loadDoctors() {
     try {
+      // Get department ID from selected specialization
+      const { data: deptData } = await supabase
+        .from('departments')
+        .select('id')
+        .eq('name', selectedSpecialization)
+        .single()
+
+      if (!deptData) {
+        console.log('Department not found')
+        return
+      }
+
+      // Get staff in this department
       const { data, error } = await supabase
         .from('staff')
-        .select(`
-          id,
-          user_id,
-          specialization,
-          consultation_fee
-        `)
-        .eq('specialization', selectedSpecialization)
+        .select('id, user_id, consultation_fee')
+        .eq('department_id', deptData.id)
 
       if (error) {
         console.error('Error loading doctors:', error)
@@ -111,9 +98,10 @@ export default function BookAppointmentPage() {
       const userIds = data.map(d => d.user_id)
       const { data: usersData, error: usersError } = await supabase
         .from('users')
-        .select('id, first_name, last_name, role')
+        .select('id, first_name, last_name, role, is_active')
         .in('id', userIds)
         .eq('role', 'doctor')
+        .eq('is_active', true)
 
       if (usersError) {
         console.error('Error loading user details:', usersError)
@@ -228,7 +216,7 @@ export default function BookAppointmentPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Specialization
+                Department/Specialization
               </label>
               <select
                 value={selectedSpecialization}
@@ -240,7 +228,7 @@ export default function BookAppointmentPage() {
                 className="w-full h-10 px-3 border border-gray-300 rounded-md"
                 required
               >
-                <option value="">Select Specialization</option>
+                <option value="">Select Department</option>
                 {specializations.map((spec) => (
                   <option key={spec} value={spec}>
                     {spec}

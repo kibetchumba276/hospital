@@ -88,7 +88,16 @@ export default function CreateStaffPage() {
 
       // If doctor or nurse, create staff record
       if (['doctor', 'nurse'].includes(formData.role)) {
-        const staffNumber = `${formData.role.toUpperCase().substring(0, 3)}${Date.now().toString().slice(-6)}`
+        // Get department code for staff number
+        const { data: deptData } = await supabase
+          .from('departments')
+          .select('name')
+          .eq('id', formData.departmentId)
+          .single()
+
+        const deptCode = deptData?.name.substring(0, 3).toUpperCase() || 'GEN'
+        const roleCode = formData.role.substring(0, 3).toUpperCase()
+        const staffNumber = `${deptCode}-${roleCode}${Date.now().toString().slice(-6)}`
         
         const { error: staffError } = await supabase
           .from('staff')
@@ -264,12 +273,18 @@ export default function CreateStaffPage() {
               </div>
             )}
 
-            <div className="bg-blue-50 p-4 rounded-md">
-              <p className="text-sm text-blue-800">
-                <strong>Default Password:</strong> {DEFAULT_PASSWORD}
+            <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
+              <p className="text-sm font-semibold text-blue-900 mb-2">
+                🔐 System Generated Password
+              </p>
+              <p className="text-lg font-mono font-bold text-blue-800 bg-white px-3 py-2 rounded border border-blue-300">
+                {DEFAULT_PASSWORD}
+              </p>
+              <p className="text-xs text-blue-600 mt-2">
+                ⚠️ User will be required to change this password on first login
               </p>
               <p className="text-xs text-blue-600 mt-1">
-                User will be required to change password on first login
+                📋 Make sure to share this password with the new staff member
               </p>
             </div>
 
