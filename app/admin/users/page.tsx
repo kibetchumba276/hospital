@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Users, Shield, UserCog, Search } from 'lucide-react'
+import { Users, Shield, UserCog, Search, Plus } from 'lucide-react'
+import Link from 'next/link'
 
 type User = {
   id: string
@@ -98,6 +99,12 @@ export default function UsersManagementPage() {
           <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
           <p className="text-gray-600 mt-1">Manage all system users and roles</p>
         </div>
+        <Link href="/admin/staff/create">
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Staff
+          </Button>
+        </Link>
       </div>
 
       <Card>
