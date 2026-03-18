@@ -88,7 +88,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t bg-white mt-20">
         <div className="container mx-auto px-4 py-8 text-center text-gray-600">
-          <p>&copy; 2024 MediCare Hospital Management System. All rights reserved.</p>
+          <p>&copy; 2026 MediCare Hospital Management System. All rights reserved.</p>
         </div>
       </footer>
     </div>
