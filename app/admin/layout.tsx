@@ -93,7 +93,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <aside className="md:col-span-1">
             <nav className="bg-white rounded-lg shadow-sm p-4 space-y-2">
               <NavLink href="/admin" icon={<Shield />} label="Dashboard" />
-              <NavLink href="/admin/users" icon={<Users />} label="Users" />
+              <NavLink href="/admin/doctors" icon={<Users />} label="Doctors" />
+              <NavLink href="/admin/users" icon={<Users />} label="All Users" />
               <NavLink href="/admin/departments" icon={<Building2 />} label="Departments" />
               <NavLink href="/admin/beds" icon={<Bed />} label="Bed Management" />
             </nav>

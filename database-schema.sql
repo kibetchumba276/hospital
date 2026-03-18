@@ -52,6 +52,7 @@ CREATE TABLE departments (
 CREATE TABLE staff (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    staff_number VARCHAR(20) UNIQUE NOT NULL,
     department_id UUID REFERENCES departments(id),
     specialization VARCHAR(100),
     license_number VARCHAR(50) UNIQUE,
