@@ -30,11 +30,14 @@ export default function RegisterPage() {
     setSuccess(false)
 
     try {
+      console.log('Starting registration for:', formData.email)
+
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
+          emailRedirectTo: `${window.location.origin}/patient`,
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName,
@@ -42,21 +45,32 @@ export default function RegisterPage() {
         }
       })
 
-      if (authError) throw authError
+      if (authError) {
+        console.error('Auth error:', authError)
+        throw authError
+      }
 
       if (!authData.user) {
         throw new Error('Failed to create user account')
       }
 
-      // Wait for auth to settle
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      console.log('Auth user created:', authData.user.id)
 
-      // Verify session is established
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
-        throw new Error('Session not established. Please try logging in.')
+      // Check if email confirmation is required
+      if (authData.session === null && authData.user.identities?.length === 0) {
+        // User already exists
+        throw new Error('An account with this email already exists. Please login instead.')
       }
+
+      // If no session, email confirmation is required
+      if (!authData.session) {
+        setSuccess(true)
+        setError('Please check your email to confirm your account, then login.')
+        return
+      }
+
+      // Session exists, continue with profile creation
+      console.log('Creating user profile...')
 
       // Create user profile
       const { error: profileError } = await supabase
@@ -73,8 +87,13 @@ export default function RegisterPage() {
 
       if (profileError) {
         console.error('Profile error:', profileError)
-        throw new Error(`Failed to create profile: ${profileError.message}`)
+        // If profile already exists, that's okay
+        if (profileError.code !== '23505') {
+          throw new Error(`Failed to create profile: ${profileError.message}`)
+        }
       }
+
+      console.log('Creating patient record...')
 
       // Create patient record
       const { error: patientError } = await supabase
@@ -85,15 +104,19 @@ export default function RegisterPage() {
 
       if (patientError) {
         console.error('Patient error:', patientError)
-        throw new Error(`Failed to create patient record: ${patientError.message}`)
+        // If patient already exists, that's okay
+        if (patientError.code !== '23505') {
+          throw new Error(`Failed to create patient record: ${patientError.message}`)
+        }
       }
 
+      console.log('Registration complete!')
       setSuccess(true)
       
       // Wait a moment then redirect
       setTimeout(() => {
         router.replace('/patient')
-      }, 1000)
+      }, 1500)
 
     } catch (error: any) {
       console.error('Registration error:', error)
