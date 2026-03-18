@@ -27,13 +27,18 @@ export default function PatientDashboard() {
       if (!user) return
 
       // Get patient ID
-      const { data: patientData } = await supabase
+      const { data: patientData, error: patientError } = await supabase
         .from('patients')
         .select('id')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
-      if (!patientData) return
+      // If no patient record exists, user is not a patient (likely staff viewing)
+      if (patientError || !patientData) {
+        console.log('No patient record found for user')
+        setLoading(false)
+        return
+      }
 
       // Get upcoming appointments count
       const { count: appointmentsCount } = await supabase

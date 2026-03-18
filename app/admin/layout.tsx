@@ -31,11 +31,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return
       }
 
-      const { data: userData } = await supabase
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
         .eq('id', session.user.id)
         .single()
+
+      if (userError || !userData) {
+        console.error('Error fetching user:', userError)
+        router.replace('/login')
+        return
+      }
 
       if (userData?.role !== 'super_admin') {
         router.replace('/login')
