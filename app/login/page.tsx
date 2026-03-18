@@ -42,7 +42,14 @@ export default function LoginPage() {
 
         if (userError) {
           console.error('Error fetching user role:', userError)
-          setError('Failed to fetch user profile. Please try again.')
+          
+          // Better error message
+          if (userError.code === 'PGRST116') {
+            setError('Profile not found. Please contact admin or check the database setup.')
+          } else {
+            setError('Failed to fetch user profile. Please try again or contact support.')
+          }
+          
           await supabase.auth.signOut()
           return
         }

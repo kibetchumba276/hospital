@@ -1,135 +1,275 @@
 # 🏥 Hospital Management System
 
-A complete Hospital Management System with Next.js 14 and Supabase.
+A complete, production-ready Hospital Management System built with Next.js 14, TypeScript, Supabase, and Tailwind CSS.
 
-## Features
+## ✨ Features
 
-- Patient registration and login
-- Appointment booking with real-time slots
-- Medical records management
-- Billing and invoices
-- Doctor dashboard with patient queue
-- Admin dashboard with system stats
-- Beautiful green medical theme
-- Session persistence and secure authentication
-- Role-based access control (Patient, Doctor, Admin)
+### For Administrators
+- 👨‍⚕️ Create and manage doctor accounts
+- 🔢 Auto-generate unique staff numbers
+- 🏷️ Set doctor specializations (Dentist, Cardiologist, etc.)
+- 🔐 Activate/deactivate user accounts
+- 🔍 Advanced search and filtering
 
-## Quick Start
+### For Doctors
+- 👥 Search and view all patients
+- 📋 Diagnose patients with comprehensive medical records
+- 💰 Create detailed invoices with line items
+- 🛏️ Admit patients and assign beds
+- 📅 View and manage appointments
+- 📊 Record patient vitals
 
-### 1. Install Dependencies
+### For Patients
+- 📝 Self-registration portal
+- 📅 Book appointments by doctor specialization
+- 👀 View appointment history and status
+- 💳 View bills and pay online
+- 📄 Download payment receipts
+- 🏥 Access complete medical history
+- 💊 View diagnoses and treatment plans
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+ installed
+- Supabase account (free tier works)
+- Git
+
+### 1. Clone and Install
 ```bash
+git clone https://github.com/kibetchumba276/hospital.git
+cd hospital
 npm install
 ```
 
-### 2. Setup Database
+### 2. Environment Setup
+The `.env.local` file is already configured with Supabase credentials.
 
-Go to your Supabase SQL Editor and run in this order:
-1. `database-schema.sql` - Creates all tables
-2. `rls-policies.sql` - Sets up security policies
-3. `fix-rls-policies.sql` - Fixes any policy issues
+### 3. Database Setup
 
-### 3. Create Admin User
+**Option A: Fresh Install**
+1. Go to Supabase Dashboard > SQL Editor
+2. Run `database-schema-safe.sql`
+3. Run `rls-policies.sql`
 
-**Option A: Using Supabase Dashboard (Recommended)**
-1. Go to Supabase Dashboard > Authentication > Users
-2. Click "Add User"
-3. Email: `sammyseth260@gmail.com`
-4. Password: (choose a secure password)
-5. **Auto Confirm User: YES** ✅
-6. Click "Create User" and copy the User ID
-7. Go to SQL Editor and run:
+**Option B: Verify Existing Setup**
+1. Run `verify-setup.sql` to check your configuration
+2. Follow the recommendations in the output
+
+### 4. Create Admin User
+
+**Method 1: Supabase Dashboard (Recommended)**
+1. Go to Authentication > Users > Add User
+2. Email: `sammyseth260@gmail.com`
+3. Password: (your choice)
+4. **Auto Confirm User: YES** ✅
+5. Copy the User ID
+6. Run in SQL Editor (replace USER_ID):
 ```sql
 INSERT INTO users (id, email, role, first_name, last_name, is_active)
-VALUES (
-  'PASTE_USER_ID_HERE',
-  'sammyseth260@gmail.com',
-  'super_admin',
-  'Admin',
-  'User',
-  true
-);
+VALUES ('USER_ID'::uuid, 'sammyseth260@gmail.com', 'super_admin', 'Admin', 'User', true);
 ```
 
-**Option B: Using Node Script**
-1. Get your Service Role Key from Supabase Dashboard > Settings > API
-2. Edit `create-admin.js` and add your service key
-3. Run: `node create-admin.js`
+**Method 2: Use Test Users**
+- Follow instructions in `create-test-users.sql`
+- Creates admin, patient, and doctor accounts
 
-### 4. Start Development Server
+### 5. Start Development Server
 ```bash
 npm run dev
 ```
 
 Open http://localhost:3000
 
-## Default Credentials
+## 📚 Documentation
 
-After setup:
-- **Admin**: sammyseth260@gmail.com / (your chosen password)
-- **Test Patient**: Register at `/register`
+- **[COMPLETE-SETUP-GUIDE.md](COMPLETE-SETUP-GUIDE.md)** - Comprehensive setup with testing
+- **[TROUBLESHOOTING-ERRORS.md](TROUBLESHOOTING-ERRORS.md)** - Fix common issues
+- **[WHAT-WE-BUILT.md](WHAT-WE-BUILT.md)** - Feature overview
+- **[create-test-users.sql](create-test-users.sql)** - Create test accounts
+- **[verify-setup.sql](verify-setup.sql)** - Verify your setup
 
-## Environment Variables
+## 🔧 Troubleshooting
 
-Already configured in `.env.local`:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+### "Failed to fetch" on Login
+- **Cause**: Supabase project is paused
+- **Fix**: Go to Supabase Dashboard and resume the project
 
-## Authentication Features
+### "Email rate limit reached"
+- **Cause**: Too many signup attempts
+- **Fix**: Create users manually (see `create-test-users.sql`)
 
-✅ Session persistence with localStorage
-✅ Auto token refresh
-✅ No redirect loops
-✅ Fast page loads with cached sessions
-✅ Proper error handling
-✅ Role-based routing
+### More Issues?
+Check [TROUBLESHOOTING-ERRORS.md](TROUBLESHOOTING-ERRORS.md) for detailed solutions.
 
-## Troubleshooting
+## 🎯 User Workflows
 
-### Issue: Redirecting to login after successful login
-**Solution**: Clear browser cache and localStorage, then try again
+### Admin Workflow
+1. Login at `/login`
+2. Go to `/admin/doctors`
+3. Create doctor accounts with specializations
+4. Manage system users
 
-### Issue: Registration not working
-**Solution**: 
-1. Check Supabase logs for errors
-2. Verify RLS policies are applied: `SELECT * FROM pg_policies WHERE tablename = 'users';`
-3. Run `fix-rls-policies.sql` again
+### Doctor Workflow
+1. Login at `/login`
+2. Search patients at `/doctor/patients`
+3. Diagnose: Record vitals, diagnosis, treatment
+4. Bill: Create invoices with line items
+5. Admit: Assign beds to patients
 
-### Issue: Admin can't access admin dashboard
-**Solution**: Verify role in database:
-```sql
-SELECT id, email, role FROM users WHERE email = 'sammyseth260@gmail.com';
-```
+### Patient Workflow
+1. Register at `/register`
+2. Book appointment by specialization at `/patient/appointments/book`
+3. View appointments at `/patient/appointments`
+4. View and pay bills at `/patient/billing`
+5. Download receipts after payment
+6. View medical records at `/patient/records`
 
-See `AUTH-FIX-GUIDE.md` for detailed troubleshooting.
+## 🗄️ Database Schema
 
-## Project Structure
+### Core Tables
+- `users` - User accounts with roles
+- `staff` - Doctor/nurse details with staff numbers
+- `patients` - Patient profiles
+- `appointments` - Appointment bookings
+- `medical_records` - Diagnoses and treatments
+- `vitals` - Patient vital signs
+- `invoices` - Bills and payments
+- `beds` - Hospital bed management
+- `bed_assignments` - Patient admissions
+
+### Security
+- Row Level Security (RLS) enabled on all tables
+- Patients can only access their own data
+- Doctors can access all patient data
+- Admins have full system access
+
+## 🛠️ Tech Stack
+
+- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS
+- **Backend**: Supabase (PostgreSQL + Auth)
+- **Authentication**: Supabase Auth with session persistence
+- **Database**: PostgreSQL with Row Level Security
+- **Deployment**: Netlify (auto-deploy from GitHub)
+
+## 📦 Project Structure
 
 ```
 app/
 ├── admin/          # Admin dashboard
-├── doctor/         # Doctor dashboard
+│   └── doctors/    # Doctor management
+├── doctor/         # Doctor portal
+│   └── patients/   # Patient management
+│       └── [id]/   # Patient actions
 ├── patient/        # Patient portal
+│   ├── appointments/  # View & book
+│   ├── billing/    # View & pay bills
+│   └── records/    # Medical history
 ├── login/          # Login page
-└── register/       # Registration page
+└── register/       # Patient registration
+
 lib/
-├── supabase.ts     # Supabase client with session config
+├── supabase.ts     # Supabase client
 └── utils.ts        # Utility functions
+
 components/
-└── ui/             # Reusable UI components
+└── ui/             # Reusable components
 ```
 
-## Tech Stack
+## 🔐 Default Credentials
 
-- Next.js 14 (App Router)
-- TypeScript
-- Tailwind CSS
-- Supabase (PostgreSQL + Auth)
-- Row Level Security (RLS) for HIPAA compliance
+After setup, you can create test accounts:
 
-## Deployment
+**Admin**
+- Email: admin@test.com
+- Password: Admin123!
 
-See `DEPLOYMENT.md` for deployment instructions to Netlify or Vercel.
+**Patient**
+- Email: patient@test.com
+- Password: Patient123!
 
-## License
+**Doctor (Dentist)**
+- Email: dentist@test.com
+- Password: Doctor123!
+
+See `create-test-users.sql` for instructions.
+
+## 🚢 Deployment
+
+### Netlify (Automatic)
+- Code is already configured for Netlify
+- Pushes to `main` branch auto-deploy
+- Environment variables are set
+
+### Manual Deployment
+1. Build: `npm run build`
+2. Deploy `.next` folder
+3. Set environment variables
+
+## 🧪 Testing
+
+### Test Complete Workflow
+1. Create admin user
+2. Admin creates doctor (Dentist)
+3. Patient registers
+4. Patient books appointment with Dentist
+5. Doctor diagnoses patient
+6. Doctor bills patient
+7. Patient pays bill
+8. Patient downloads receipt
+9. Doctor admits patient to bed
+
+See [COMPLETE-SETUP-GUIDE.md](COMPLETE-SETUP-GUIDE.md) for detailed testing steps.
+
+## 📊 Features Checklist
+
+- ✅ User authentication with session persistence
+- ✅ Role-based access control (Admin, Doctor, Patient)
+- ✅ Doctor management with specializations
+- ✅ Patient registration and profiles
+- ✅ Appointment booking by specialization
+- ✅ Medical records with vitals
+- ✅ Billing and invoicing
+- ✅ Online payment processing
+- ✅ Receipt generation
+- ✅ Bed management and admissions
+- ✅ Row Level Security (RLS)
+- ✅ Responsive design
+- ✅ Auto-deploy to Netlify
+
+## 🤝 Contributing
+
+This is a complete, production-ready system. Feel free to:
+- Report bugs
+- Suggest features
+- Submit pull requests
+
+## 📄 License
 
 MIT
+
+## 🆘 Support
+
+Having issues? Check these resources:
+1. [TROUBLESHOOTING-ERRORS.md](TROUBLESHOOTING-ERRORS.md)
+2. [COMPLETE-SETUP-GUIDE.md](COMPLETE-SETUP-GUIDE.md)
+3. Run `verify-setup.sql` to check your configuration
+4. Check Supabase Dashboard > Logs for errors
+5. Check browser console for client-side errors
+
+## 🎉 Acknowledgments
+
+Built with:
+- Next.js 14
+- Supabase
+- Tailwind CSS
+- TypeScript
+- Shadcn/ui components
+
+---
+
+**Live Demo**: (Deploy to Netlify to get your URL)
+
+**Admin Email**: sammyseth260@gmail.com
+
+**Status**: ✅ Production Ready
