@@ -37,7 +37,8 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
         .eq('id', session.user.id)
         .single()
 
-      if (userData?.role !== 'patient') {
+      // Allow super_admin to access any dashboard
+      if (userData?.role !== 'super_admin' && userData?.role !== 'patient') {
         router.replace('/login')
         return
       }
@@ -78,6 +79,22 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <span className="text-2xl font-bold text-primary-700">MediCare</span>
           </div>
           <div className="flex items-center gap-4">
+            {user?.role === 'super_admin' && (
+              <select
+                onChange={(e) => {
+                  if (e.target.value) {
+                    router.push(e.target.value)
+                  }
+                }}
+                className="px-3 py-2 border rounded-md text-sm"
+                defaultValue=""
+              >
+                <option value="">Switch View...</option>
+                <option value="/admin">Admin Dashboard</option>
+                <option value="/doctor">Doctor Dashboard</option>
+                <option value="/patient">Patient Dashboard</option>
+              </select>
+            )}
             <span className="text-gray-700">
               {user?.first_name} {user?.last_name}
             </span>
