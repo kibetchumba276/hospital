@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Heart, Pill, FileText, LogOut, Package, ShoppingCart } from 'lucide-react'
+import { Heart, Pill, FileText, LogOut, Package, ShoppingCart, DollarSign } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function PharmacistLayout({ children }: { children: React.ReactNode }) {
@@ -122,6 +122,7 @@ export default function PharmacistLayout({ children }: { children: React.ReactNo
               <NavLink href="/pharmacist/prescriptions" icon={<FileText />} label="Prescriptions" />
               <NavLink href="/pharmacist/inventory" icon={<Package />} label="Inventory" />
               <NavLink href="/pharmacist/dispense" icon={<ShoppingCart />} label="Dispense" />
+              <NavLink href="/pharmacist/billing" icon={<DollarSign />} label="Billing" />
             </nav>
           </aside>
 

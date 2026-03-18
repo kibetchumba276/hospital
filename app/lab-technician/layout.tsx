@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Heart, TestTube, FileText, LogOut, ClipboardList } from 'lucide-react'
+import { Heart, TestTube, FileText, LogOut, ClipboardList, DollarSign } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function LabTechnicianLayout({ children }: { children: React.ReactNode }) {
@@ -122,6 +122,7 @@ export default function LabTechnicianLayout({ children }: { children: React.Reac
               <NavLink href="/lab-technician/verify" icon={<ClipboardList />} label="Verify & Collect" />
               <NavLink href="/lab-technician/orders" icon={<ClipboardList />} label="Lab Orders" />
               <NavLink href="/lab-technician/results" icon={<FileText />} label="Results" />
+              <NavLink href="/lab-technician/billing" icon={<DollarSign />} label="Billing" />
             </nav>
           </aside>
 

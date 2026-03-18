@@ -12,7 +12,7 @@ export default function LabOrdersPage() {
   const [filter, setFilter] = useState('pending')
   const [searchTerm, setSearchTerm] = useState('')
 
-  useEffect() {
+  useEffect(() => {
     loadOrders()
   }, [])
 

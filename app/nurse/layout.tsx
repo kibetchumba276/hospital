@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Heart, Calendar, Users, FileText, LogOut, Activity, Pill, TestTube } from 'lucide-react'
+import { Heart, Calendar, Users, FileText, LogOut, Activity, Pill, TestTube, DollarSign } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function NurseLayout({ children }: { children: React.ReactNode }) {
@@ -122,6 +122,7 @@ export default function NurseLayout({ children }: { children: React.ReactNode })
               <NavLink href="/nurse/medications" icon={<Pill />} label="Medications" />
               <NavLink href="/nurse/appointments" icon={<Calendar />} label="Appointments" />
               <NavLink href="/nurse/records" icon={<FileText />} label="Records" />
+              <NavLink href="/nurse/billing" icon={<FileText />} label="Billing" />
             </nav>
           </aside>
 
