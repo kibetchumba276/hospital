@@ -119,6 +119,7 @@ export default function LabTechnicianLayout({ children }: { children: React.Reac
           <aside className="md:col-span-1">
             <nav className="bg-white rounded-lg shadow-sm p-4 space-y-1">
               <NavLink href="/lab-technician" icon={<TestTube />} label="Dashboard" />
+              <NavLink href="/lab-technician/verify" icon={<ClipboardList />} label="Verify & Collect" />
               <NavLink href="/lab-technician/orders" icon={<ClipboardList />} label="Lab Orders" />
               <NavLink href="/lab-technician/results" icon={<FileText />} label="Results" />
             </nav>

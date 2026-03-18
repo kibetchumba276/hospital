@@ -117,6 +117,7 @@ export default function ReceptionistLayout({ children }: { children: React.React
           <aside className="md:col-span-1">
             <nav className="bg-white rounded-lg shadow-sm p-4 space-y-1">
               <NavLink href="/receptionist" icon={<Users />} label="Dashboard" />
+              <NavLink href="/receptionist/check-in" icon={<UserPlus />} label="Check-In Patient" />
               <NavLink href="/receptionist/appointments" icon={<Calendar />} label="Appointments" />
               <NavLink href="/receptionist/patients" icon={<Users />} label="Patients" />
               <NavLink href="/receptionist/register" icon={<UserPlus />} label="Register Patient" />

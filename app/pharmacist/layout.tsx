@@ -118,6 +118,7 @@ export default function PharmacistLayout({ children }: { children: React.ReactNo
           <aside className="md:col-span-1">
             <nav className="bg-white rounded-lg shadow-sm p-4 space-y-1">
               <NavLink href="/pharmacist" icon={<Pill />} label="Dashboard" />
+              <NavLink href="/pharmacist/verify" icon={<ShoppingCart />} label="Verify & Dispense" />
               <NavLink href="/pharmacist/prescriptions" icon={<FileText />} label="Prescriptions" />
               <NavLink href="/pharmacist/inventory" icon={<Package />} label="Inventory" />
               <NavLink href="/pharmacist/dispense" icon={<ShoppingCart />} label="Dispense" />
