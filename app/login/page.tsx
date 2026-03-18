@@ -29,7 +29,10 @@ export default function LoginPage() {
 
       if (error) throw error
 
-      if (data.user) {
+      if (data.user && data.session) {
+        // Wait for session to be fully established
+        await new Promise(resolve => setTimeout(resolve, 500))
+
         // Get user role
         const { data: userData, error: userError } = await supabase
           .from('users')
@@ -39,8 +42,8 @@ export default function LoginPage() {
 
         if (userError) {
           console.error('Error fetching user role:', userError)
-          // Default to patient if role fetch fails
-          router.replace('/patient')
+          setError('Failed to fetch user profile. Please try again.')
+          await supabase.auth.signOut()
           return
         }
 
