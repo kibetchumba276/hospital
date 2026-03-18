@@ -1,20 +1,40 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { FileText, Activity } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
+import { FileText, Activity, Pill } from 'lucide-react'
 
-export default function MedicalRecordsPage() {
-  const [records, setRecords] = useState<any[]>([])
+interface MedicalRecord {
+  id: string
+  visit_date: string
+  chief_complaint: string
+  diagnosis: string
+  treatment_plan: string
+  notes: string
+  doctor: {
+    first_name: string
+    last_name: string
+    specialization: string
+  }
+  vitals: Array<{
+    temperature: number
+    blood_pressure_systolic: number
+    blood_pressure_diastolic: number
+    heart_rate: number
+    weight: number
+  }>
+}
+
+export default function PatientRecordsPage() {
+  const [records, setRecords] = useState<MedicalRecord[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadRecords()
+    fetchRecords()
   }, [])
 
-  async function loadRecords() {
+  async function fetchRecords() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -27,43 +47,78 @@ export default function MedicalRecordsPage() {
 
       if (!patientData) return
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('medical_records')
         .select(`
-          *,
-          doctor:staff!medical_records_doctor_id_fkey(
-            user:users(first_name, last_name),
+          id,
+          visit_date,
+          chief_complaint,
+          diagnosis,
+          treatment_plan,
+          notes,
+          staff!inner (
+            users!inner (
+              first_name,
+              last_name
+            ),
             specialization
           ),
-          vitals(*)
+          vitals (
+            temperature,
+            blood_pressure_systolic,
+            blood_pressure_diastolic,
+            heart_rate,
+            weight
+          )
         `)
         .eq('patient_id', patientData.id)
         .order('visit_date', { ascending: false })
 
-      setRecords(data || [])
-    } catch (error) {
-      console.error('Error loading records:', error)
+      if (error) throw error
+
+      const formattedRecords = data?.map((record: any) => ({
+        id: record.id,
+        visit_date: record.visit_date,
+        chief_complaint: record.chief_complaint,
+        diagnosis: record.diagnosis,
+        treatment_plan: record.treatment_plan,
+        notes: record.notes,
+        doctor: {
+          first_name: record.staff.users.first_name,
+          last_name: record.staff.users.last_name,
+          specialization: record.staff.specialization,
+        },
+        vitals: record.vitals || [],
+      })) || []
+
+      setRecords(formattedRecords)
+    } catch (error: any) {
+      console.error('Error fetching records:', error)
     } finally {
       setLoading(false)
     }
   }
 
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Medical Records</h1>
-        <p className="text-gray-600 mt-1">Your complete medical history</p>
+        <h1 className="text-3xl font-bold text-gray-900">My Medical Records</h1>
+        <p className="text-gray-600 mt-1">View your medical history and diagnoses</p>
       </div>
 
       {records.length === 0 ? (
         <Card>
-          <CardContent className="py-8 text-center text-gray-500">
-            <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-            No medical records yet
+          <CardContent className="py-12 text-center">
+            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">No medical records yet</p>
           </CardContent>
         </Card>
       ) : (
@@ -74,59 +129,74 @@ export default function MedicalRecordsPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <CardTitle className="text-lg">
-                      Visit on {formatDate(record.visit_date)}
+                      Visit on {new Date(record.visit_date).toLocaleDateString()}
                     </CardTitle>
                     <p className="text-sm text-gray-600 mt-1">
-                      Dr. {record.doctor.user.first_name} {record.doctor.user.last_name} - {record.doctor.specialization}
+                      Dr. {record.doctor.first_name} {record.doctor.last_name} - {record.doctor.specialization}
                     </p>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {record.chief_complaint && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Chief Complaint</p>
-                    <p className="text-gray-600">{record.chief_complaint}</p>
-                  </div>
-                )}
-
-                {record.diagnosis && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Diagnosis</p>
-                    <p className="text-gray-600">{record.diagnosis}</p>
-                  </div>
-                )}
-
-                {record.treatment_plan && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Treatment Plan</p>
-                    <p className="text-gray-600">{record.treatment_plan}</p>
-                  </div>
-                )}
-
-                {record.vitals && record.vitals.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      <Activity className="h-4 w-4" />
-                      Vitals
-                    </p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-md">
+                {record.vitals.length > 0 && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Activity className="h-5 w-5 text-primary-600" />
+                      <h4 className="font-medium text-gray-900">Vitals</h4>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       {record.vitals[0].temperature && (
-                        <VitalStat label="Temperature" value={`${record.vitals[0].temperature}°F`} />
+                        <div>
+                          <span className="text-gray-600">Temperature:</span>
+                          <p className="font-medium">{record.vitals[0].temperature}°F</p>
+                        </div>
                       )}
                       {record.vitals[0].blood_pressure_systolic && (
-                        <VitalStat
-                          label="Blood Pressure"
-                          value={`${record.vitals[0].blood_pressure_systolic}/${record.vitals[0].blood_pressure_diastolic}`}
-                        />
+                        <div>
+                          <span className="text-gray-600">Blood Pressure:</span>
+                          <p className="font-medium">
+                            {record.vitals[0].blood_pressure_systolic}/{record.vitals[0].blood_pressure_diastolic}
+                          </p>
+                        </div>
                       )}
                       {record.vitals[0].heart_rate && (
-                        <VitalStat label="Heart Rate" value={`${record.vitals[0].heart_rate} bpm`} />
+                        <div>
+                          <span className="text-gray-600">Heart Rate:</span>
+                          <p className="font-medium">{record.vitals[0].heart_rate} bpm</p>
+                        </div>
                       )}
-                      {record.vitals[0].oxygen_saturation && (
-                        <VitalStat label="O2 Saturation" value={`${record.vitals[0].oxygen_saturation}%`} />
+                      {record.vitals[0].weight && (
+                        <div>
+                          <span className="text-gray-600">Weight:</span>
+                          <p className="font-medium">{record.vitals[0].weight} kg</p>
+                        </div>
                       )}
                     </div>
+                  </div>
+                )}
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Chief Complaint:</h4>
+                  <p className="text-gray-700">{record.chief_complaint}</p>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Diagnosis:</h4>
+                  <p className="text-gray-700">{record.diagnosis}</p>
+                </div>
+
+                <div className="bg-primary-50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Pill className="h-5 w-5 text-primary-600" />
+                    <h4 className="font-medium text-gray-900">Treatment Plan:</h4>
+                  </div>
+                  <p className="text-gray-700">{record.treatment_plan}</p>
+                </div>
+
+                {record.notes && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Additional Notes:</h4>
+                    <p className="text-gray-600 text-sm">{record.notes}</p>
                   </div>
                 )}
               </CardContent>
@@ -134,15 +204,6 @@ export default function MedicalRecordsPage() {
           ))}
         </div>
       )}
-    </div>
-  )
-}
-
-function VitalStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs text-gray-600">{label}</p>
-      <p className="text-sm font-semibold text-gray-900">{value}</p>
     </div>
   )
 }

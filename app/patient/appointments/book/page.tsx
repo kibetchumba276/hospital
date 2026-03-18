@@ -11,10 +11,10 @@ import Link from 'next/link'
 
 export default function BookAppointmentPage() {
   const router = useRouter()
-  const [departments, setDepartments] = useState<any[]>([])
+  const [specializations, setSpecializations] = useState<string[]>([])
   const [doctors, setDoctors] = useState<any[]>([])
   const [availableSlots, setAvailableSlots] = useState<any[]>([])
-  const [selectedDepartment, setSelectedDepartment] = useState('')
+  const [selectedSpecialization, setSelectedSpecialization] = useState('')
   const [selectedDoctor, setSelectedDoctor] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
@@ -23,14 +23,14 @@ export default function BookAppointmentPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    loadDepartments()
+    loadSpecializations()
   }, [])
 
   useEffect(() => {
-    if (selectedDepartment) {
+    if (selectedSpecialization) {
       loadDoctors()
     }
-  }, [selectedDepartment])
+  }, [selectedSpecialization])
 
   useEffect(() => {
     if (selectedDoctor && selectedDate) {
@@ -38,14 +38,16 @@ export default function BookAppointmentPage() {
     }
   }, [selectedDoctor, selectedDate])
 
-  async function loadDepartments() {
+  async function loadSpecializations() {
     const { data } = await supabase
-      .from('departments')
-      .select('*')
-      .eq('is_active', true)
-      .order('name')
+      .from('staff')
+      .select('specialization')
+      .not('specialization', 'is', null)
+      .order('specialization')
 
-    setDepartments(data || [])
+    // Get unique specializations
+    const unique = [...new Set(data?.map(d => d.specialization).filter(Boolean))]
+    setSpecializations(unique)
   }
 
   async function loadDoctors() {
@@ -54,9 +56,10 @@ export default function BookAppointmentPage() {
       .select(`
         id,
         specialization,
-        user:users(first_name, last_name)
+        consultation_fee,
+        users!inner(first_name, last_name)
       `)
-      .eq('department_id', selectedDepartment)
+      .eq('specialization', selectedSpecialization)
 
     setDoctors(data || [])
   }
@@ -112,7 +115,6 @@ export default function BookAppointmentPage() {
         .insert({
           patient_id: patientData.id,
           doctor_id: selectedDoctor,
-          department_id: selectedDepartment,
           appointment_date: selectedDate,
           appointment_time: selectedTime,
           reason_for_visit: reason,
@@ -154,28 +156,28 @@ export default function BookAppointmentPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Department
+                Specialization
               </label>
               <select
-                value={selectedDepartment}
+                value={selectedSpecialization}
                 onChange={(e) => {
-                  setSelectedDepartment(e.target.value)
+                  setSelectedSpecialization(e.target.value)
                   setSelectedDoctor('')
                   setAvailableSlots([])
                 }}
                 className="w-full h-10 px-3 border border-gray-300 rounded-md"
                 required
               >
-                <option value="">Select Department</option>
-                {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
+                <option value="">Select Specialization</option>
+                {specializations.map((spec) => (
+                  <option key={spec} value={spec}>
+                    {spec}
                   </option>
                 ))}
               </select>
             </div>
 
-            {selectedDepartment && (
+            {selectedSpecialization && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Doctor
@@ -192,7 +194,8 @@ export default function BookAppointmentPage() {
                   <option value="">Select Doctor</option>
                   {doctors.map((doctor) => (
                     <option key={doctor.id} value={doctor.id}>
-                      Dr. {doctor.user.first_name} {doctor.user.last_name} - {doctor.specialization}
+                      Dr. {doctor.users.first_name} {doctor.users.last_name}
+                      {doctor.consultation_fee > 0 && ` - $${doctor.consultation_fee}`}
                     </option>
                   ))}
                 </select>
