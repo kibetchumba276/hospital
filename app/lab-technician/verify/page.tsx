@@ -5,8 +5,9 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { QrCode, CheckCircle, XCircle, TestTube } from 'lucide-react'
+import { QrCode, CheckCircle, XCircle, TestTube, Camera } from 'lucide-react'
 import { verifyQRCode } from '@/lib/qrcode'
+import QRScanner from '@/components/QRScanner'
 
 export default function LabVerifyPage() {
   const [qrCode, setQrCode] = useState('')
@@ -14,9 +15,11 @@ export default function LabVerifyPage() {
   const [verificationResult, setVerificationResult] = useState<any>(null)
   const [labOrders, setLabOrders] = useState<any[]>([])
   const [error, setError] = useState('')
+  const [showScanner, setShowScanner] = useState(false)
 
-  async function handleVerify() {
-    if (!qrCode) {
+  async function handleVerify(qrData?: string) {
+    const codeToVerify = qrData || qrCode
+    if (!codeToVerify) {
       setError('Please enter QR code')
       return
     }
@@ -28,20 +31,20 @@ export default function LabVerifyPage() {
 
     try {
       // Verify QR code format and payment
-      const verification = verifyQRCode(qrCode)
+      const verification = verifyQRCode(codeToVerify)
       
       if (!verification.valid) {
         setError(verification.error || 'Invalid QR code')
         return
       }
 
-      const qrData = verification.data!
+      const qrCodeData = verification.data!
 
       // Get invoice details
       const { data: invoiceData, error: invoiceError } = await supabase
         .from('invoices')
         .select('*')
-        .eq('id', qrData.invoice_id)
+        .eq('id', qrCodeData.invoice_id)
         .single()
 
       if (invoiceError || !invoiceData) {
@@ -61,7 +64,7 @@ export default function LabVerifyPage() {
           *,
           user:users(first_name, last_name, email, phone)
         `)
-        .eq('id', qrData.patient_id)
+        .eq('id', qrCodeData.patient_id)
         .single()
 
       // Get lab orders for this patient
@@ -74,14 +77,14 @@ export default function LabVerifyPage() {
             user:users(first_name, last_name)
           )
         `)
-        .eq('patient_id', qrData.patient_id)
+        .eq('patient_id', qrCodeData.patient_id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
 
       if (labError) throw labError
 
       // Filter lab orders that have tests in the QR code
-      const testItems = qrData.items.filter(item => item.type === 'lab_test')
+      const testItems = qrCodeData.items.filter(item => item.type === 'lab_test')
       const relevantOrders = labOrdersData?.filter(order => 
         order.lab_test_items?.some((item: any) => 
           testItems.some(t => t.name === item.test_name)
@@ -92,7 +95,7 @@ export default function LabVerifyPage() {
         valid: true,
         invoice: invoiceData,
         patient: patientData,
-        qrData
+        qrData: qrCodeData
       })
 
       setLabOrders(relevantOrders)
@@ -103,6 +106,13 @@ export default function LabVerifyPage() {
     } finally {
       setVerifying(false)
     }
+  }
+
+  function handleScanResult(scannedData: string) {
+    console.log('📱 QR Code scanned:', scannedData)
+    setQrCode(scannedData)
+    setShowScanner(false)
+    handleVerify(scannedData)
   }
 
   async function collectSample(orderId: string) {
@@ -166,12 +176,20 @@ export default function LabVerifyPage() {
               </label>
               <div className="flex gap-3">
                 <Input
-                  placeholder="Paste QR code data or scan with device"
+                  placeholder="Paste QR code data or scan with camera"
                   value={qrCode}
                   onChange={(e) => setQrCode(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleVerify()}
                 />
-                <Button onClick={handleVerify} disabled={verifying}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowScanner(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Camera className="h-4 w-4" />
+                  Scan
+                </Button>
+                <Button onClick={() => handleVerify()} disabled={verifying}>
                   {verifying ? 'Verifying...' : 'Verify'}
                 </Button>
               </div>
@@ -204,6 +222,14 @@ export default function LabVerifyPage() {
           </div>
         </CardContent>
       </Card>
+
+      {showScanner && (
+        <QRScanner
+          onScan={handleScanResult}
+          onClose={() => setShowScanner(false)}
+          title="Scan Payment Receipt"
+        />
+      )}
 
       {labOrders.length > 0 && (
         <Card>

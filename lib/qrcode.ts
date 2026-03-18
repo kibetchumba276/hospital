@@ -34,6 +34,32 @@ export function parseInvoiceQR(qrData: string): InvoiceQRData | null {
   }
 }
 
+export function verifyQRCode(qrData: string): { valid: boolean; data?: any; error?: string } {
+  try {
+    if (!qrData || qrData.trim() === '') {
+      return { valid: false, error: 'QR code data is empty' }
+    }
+
+    // Try to parse as JSON
+    const parsed = JSON.parse(qrData)
+    
+    // Check if it has required invoice fields
+    if (!parsed.invoice_id || !parsed.patient_id || !parsed.amount || !parsed.status) {
+      return { valid: false, error: 'Invalid QR code format - missing required fields' }
+    }
+
+    // Add items array if not present (for backward compatibility)
+    if (!parsed.items) {
+      parsed.items = []
+    }
+
+    return { valid: true, data: parsed }
+  } catch (error) {
+    console.error('Error verifying QR data:', error)
+    return { valid: false, error: 'Invalid QR code format - not valid JSON' }
+  }
+}
+
 export function generateReceiptHTML(invoice: any, qrCodeDataURL: string): string {
   const patientName = `${invoice.patient?.user?.first_name || 'Unknown'} ${invoice.patient?.user?.last_name || 'Patient'}`
   
