@@ -11,40 +11,61 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [checking, setChecking] = useState(false)
 
   useEffect(() => {
-    checkUser()
+    if (!checking) {
+      checkUser()
+    }
   }, [])
 
   async function checkUser() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      router.push('/login')
-      return
+    if (checking) return
+    setChecking(true)
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        router.replace('/login')
+        return
+      }
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
+
+      if (userData?.role !== 'patient') {
+        router.replace('/login')
+        return
+      }
+
+      setUser(userData)
+    } catch (error) {
+      console.error('Auth error:', error)
+      router.replace('/login')
+    } finally {
+      setLoading(false)
+      setChecking(false)
     }
-
-    const { data: userData } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
-    if (userData?.role !== 'patient') {
-      router.push('/login')
-      return
-    }
-
-    setUser(userData)
-    setLoading(false)
   }
 
   async function handleLogout() {
     await supabase.auth.signOut()
-    router.push('/')
+    router.replace('/')
   }
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

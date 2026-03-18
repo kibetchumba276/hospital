@@ -40,7 +40,7 @@ export default function LoginPage() {
         if (userError) {
           console.error('Error fetching user role:', userError)
           // Default to patient if role fetch fails
-          router.push('/patient')
+          router.replace('/patient')
           return
         }
 
@@ -48,17 +48,17 @@ export default function LoginPage() {
         const role = userData?.role
         switch (role) {
           case 'super_admin':
-            router.push('/admin')
+            router.replace('/admin')
             break
           case 'doctor':
-            router.push('/doctor')
+            router.replace('/doctor')
             break
           case 'receptionist':
-            router.push('/receptionist')
+            router.replace('/receptionist')
             break
           case 'patient':
           default:
-            router.push('/patient')
+            router.replace('/patient')
             break
         }
       }
