@@ -128,7 +128,7 @@ export default function PatientDashboard() {
       </div>
 
       {/* Next Appointment */}
-      {nextAppointment && (
+      {nextAppointment && nextAppointment.doctor && nextAppointment.doctor.user && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -143,8 +143,12 @@ export default function PatientDashboard() {
                   <p className="font-semibold text-lg">
                     Dr. {nextAppointment.doctor.user.first_name} {nextAppointment.doctor.user.last_name}
                   </p>
-                  <p className="text-gray-600">{nextAppointment.doctor.specialization}</p>
-                  <p className="text-sm text-gray-500 mt-1">{nextAppointment.department.name}</p>
+                  {nextAppointment.doctor.specialization && (
+                    <p className="text-gray-600">{nextAppointment.doctor.specialization}</p>
+                  )}
+                  {nextAppointment.department?.name && (
+                    <p className="text-sm text-gray-500 mt-1">{nextAppointment.department.name}</p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-primary-600">
