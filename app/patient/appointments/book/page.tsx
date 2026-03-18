@@ -39,29 +39,101 @@ export default function BookAppointmentPage() {
   }, [selectedDoctor, selectedDate])
 
   async function loadSpecializations() {
-    const { data } = await supabase
-      .from('staff')
-      .select('specialization')
-      .not('specialization', 'is', null)
-      .order('specialization')
+    try {
+      // Get all staff with specializations
+      const { data: staffData, error: staffError } = await supabase
+        .from('staff')
+        .select('specialization, user_id')
+        .not('specialization', 'is', null)
 
-    // Get unique specializations
-    const unique = [...new Set(data?.map(d => d.specialization).filter(Boolean))]
-    setSpecializations(unique)
+      if (staffError) {
+        console.error('Error loading staff:', staffError)
+        return
+      }
+
+      if (!staffData || staffData.length === 0) {
+        console.log('No staff found')
+        return
+      }
+
+      // Get user IDs
+      const userIds = staffData.map(s => s.user_id)
+
+      // Get active doctor users
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, role, is_active')
+        .in('id', userIds)
+        .eq('role', 'doctor')
+        .eq('is_active', true)
+
+      if (usersError) {
+        console.error('Error loading users:', usersError)
+        return
+      }
+
+      // Filter staff to only include active doctors
+      const activeUserIds = new Set(usersData?.map(u => u.id) || [])
+      const activeStaff = staffData.filter(s => activeUserIds.has(s.user_id))
+
+      // Get unique specializations
+      const unique = [...new Set(activeStaff.map(d => d.specialization).filter(Boolean))]
+      console.log('Available specializations:', unique)
+      setSpecializations(unique)
+    } catch (error) {
+      console.error('Error in loadSpecializations:', error)
+    }
   }
 
   async function loadDoctors() {
-    const { data } = await supabase
-      .from('staff')
-      .select(`
-        id,
-        specialization,
-        consultation_fee,
-        users!inner(first_name, last_name)
-      `)
-      .eq('specialization', selectedSpecialization)
+    try {
+      const { data, error } = await supabase
+        .from('staff')
+        .select(`
+          id,
+          user_id,
+          specialization,
+          consultation_fee
+        `)
+        .eq('specialization', selectedSpecialization)
 
-    setDoctors(data || [])
+      if (error) {
+        console.error('Error loading doctors:', error)
+        return
+      }
+
+      if (!data || data.length === 0) {
+        setDoctors([])
+        return
+      }
+
+      // Get user details for each doctor
+      const userIds = data.map(d => d.user_id)
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, role')
+        .in('id', userIds)
+        .eq('role', 'doctor')
+
+      if (usersError) {
+        console.error('Error loading user details:', usersError)
+        return
+      }
+
+      // Combine staff and user data
+      const doctorsWithUsers = data.map(staff => {
+        const user = usersData?.find(u => u.id === staff.user_id)
+        return {
+          ...staff,
+          users: user || { first_name: 'Unknown', last_name: 'Doctor' }
+        }
+      }).filter(d => d.users.first_name !== 'Unknown')
+
+      console.log('Loaded doctors:', doctorsWithUsers)
+      setDoctors(doctorsWithUsers)
+    } catch (error) {
+      console.error('Error in loadDoctors:', error)
+    }
   }
 
   async function loadAvailableSlots() {
