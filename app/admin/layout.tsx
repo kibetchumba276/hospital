@@ -114,6 +114,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <nav className="bg-white rounded-lg shadow-sm p-4 space-y-2">
               <NavLink href="/admin" icon={<Shield />} label="Dashboard" />
               <NavLink href="/admin/staff/create" icon={<Users />} label="Add User" />
+              <NavLink href="/admin/patients" icon={<Users />} label="Patients" />
+              <NavLink href="/admin/staff" icon={<Users />} label="Staff" />
               <NavLink href="/admin/doctors" icon={<Users />} label="Doctors" />
               <NavLink href="/admin/users" icon={<Users />} label="All Users" />
               <NavLink href="/admin/departments" icon={<Building2 />} label="Departments" />

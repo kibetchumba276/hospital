@@ -119,6 +119,12 @@ function AppointmentCard({ appointment, isPast = false }: any) {
     cancelled: 'bg-red-100 text-red-800',
   }
 
+  // Safely extract doctor info with null checks
+  const doctorFirstName = appointment.doctor?.user?.first_name || 'Staff'
+  const doctorLastName = appointment.doctor?.user?.last_name || 'Member'
+  const specialization = appointment.doctor?.specialization || 'General'
+  const departmentName = appointment.department?.name || 'General'
+
   return (
     <Card className={isPast ? 'opacity-75' : ''}>
       <CardContent className="pt-6">
@@ -129,10 +135,10 @@ function AppointmentCard({ appointment, isPast = false }: any) {
                 <div className="flex items-center gap-2">
                   <User className="h-5 w-5 text-gray-400" />
                   <p className="font-semibold text-lg">
-                    Dr. {appointment.doctor.user.first_name} {appointment.doctor.user.last_name}
+                    {doctorFirstName} {doctorLastName}
                   </p>
                 </div>
-                <p className="text-gray-600 ml-7">{appointment.doctor.specialization}</p>
+                <p className="text-gray-600 ml-7">{specialization}</p>
               </div>
               <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[appointment.status]}`}>
                 {appointment.status.replace('_', ' ').toUpperCase()}
@@ -150,7 +156,7 @@ function AppointmentCard({ appointment, isPast = false }: any) {
               </div>
               <div className="flex items-center gap-1">
                 <MapPin className="h-4 w-4" />
-                {appointment.department.name}
+                {departmentName}
               </div>
             </div>
 
