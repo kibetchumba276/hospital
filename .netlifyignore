@@ -1,0 +1,9 @@
+# Supabase Edge Functions (Deno runtime, not for Next.js build)
+supabase/functions/**
+
+# Development files
+*.log
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
