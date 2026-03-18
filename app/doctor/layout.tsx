@@ -46,8 +46,9 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
         return
       }
 
-      // Allow super_admin to access any dashboard
-      if (userData?.role !== 'super_admin' && userData?.role !== 'doctor') {
+      // Allow super_admin and all staff roles to access
+      if (userData?.role !== 'super_admin' && 
+          !['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'].includes(userData?.role || '')) {
         router.replace('/login')
         return
       }

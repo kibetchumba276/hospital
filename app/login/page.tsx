@@ -71,10 +71,11 @@ export default function LoginPage() {
             router.replace('/admin')
             break
           case 'doctor':
-            router.replace('/doctor')
-            break
+          case 'nurse':
           case 'receptionist':
-            router.replace('/receptionist')
+          case 'pharmacist':
+          case 'lab_technician':
+            router.replace('/doctor')
             break
           case 'patient':
           default:
@@ -98,10 +99,11 @@ export default function LoginPage() {
         router.replace('/admin')
         break
       case 'doctor':
-        router.replace('/doctor')
-        break
+      case 'nurse':
       case 'receptionist':
-        router.replace('/receptionist')
+      case 'pharmacist':
+      case 'lab_technician':
+        router.replace('/doctor')
         break
       case 'patient':
       default:
