@@ -4,13 +4,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { 
-  Heart, Calendar, Users, FileText, LogOut, Stethoscope,
-  Pill, TestTube, Bed, Receipt, ClipboardList, Activity
-} from 'lucide-react'
+import { Heart, Calendar, Users, FileText, LogOut, UserPlus, CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-export default function DoctorLayout({ children }: { children: React.ReactNode }) {
+export default function ReceptionistLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -46,8 +43,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
         return
       }
 
-      // Allow super_admin and doctors only
-      if (userData?.role !== 'super_admin' && userData?.role !== 'doctor') {
+      if (userData?.role !== 'super_admin' && userData?.role !== 'receptionist') {
         router.replace('/login')
         return
       }
@@ -84,7 +80,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Heart className="h-8 w-8 text-primary-600" />
-            <span className="text-2xl font-bold text-primary-700">MediCare HMS</span>
+            <span className="text-2xl font-bold text-primary-700">MediCare - Reception</span>
           </div>
           <div className="flex items-center gap-4">
             {user?.role === 'super_admin' && (
@@ -100,11 +96,13 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                 <option value="">Switch View...</option>
                 <option value="/admin">Admin Dashboard</option>
                 <option value="/doctor">Doctor Dashboard</option>
+                <option value="/nurse">Nurse Dashboard</option>
+                <option value="/receptionist">Receptionist Dashboard</option>
                 <option value="/patient">Patient Dashboard</option>
               </select>
             )}
             <span className="text-gray-700">
-              Dr. {user?.first_name} {user?.last_name}
+              {user?.first_name} {user?.last_name}
             </span>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" />
@@ -118,31 +116,12 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
         <div className="grid md:grid-cols-4 gap-6">
           <aside className="md:col-span-1">
             <nav className="bg-white rounded-lg shadow-sm p-4 space-y-1">
-              <div className="pb-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">Overview</p>
-                <NavLink href="/doctor" icon={<Stethoscope />} label="Dashboard" />
-              </div>
-              
-              <div className="pt-2 pb-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">Patient Care</p>
-                <NavLink href="/doctor/patients" icon={<Users />} label="My Patients" />
-                <NavLink href="/doctor/appointments" icon={<Calendar />} label="Appointments" />
-              </div>
-              
-              <div className="pt-2 pb-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">Clinical</p>
-                <NavLink href="/doctor/diagnose" icon={<ClipboardList />} label="Diagnose" />
-                <NavLink href="/doctor/prescriptions" icon={<Pill />} label="Prescriptions" />
-                <NavLink href="/doctor/lab-orders" icon={<TestTube />} label="Lab Orders" />
-                <NavLink href="/doctor/vitals" icon={<Activity />} label="Vitals" />
-                <NavLink href="/doctor/records" icon={<FileText />} label="Medical Records" />
-              </div>
-              
-              <div className="pt-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">Operations</p>
-                <NavLink href="/doctor/admissions" icon={<Bed />} label="Admissions" />
-                <NavLink href="/doctor/billing" icon={<Receipt />} label="Billing" />
-              </div>
+              <NavLink href="/receptionist" icon={<Users />} label="Dashboard" />
+              <NavLink href="/receptionist/appointments" icon={<Calendar />} label="Appointments" />
+              <NavLink href="/receptionist/patients" icon={<Users />} label="Patients" />
+              <NavLink href="/receptionist/register" icon={<UserPlus />} label="Register Patient" />
+              <NavLink href="/receptionist/billing" icon={<CreditCard />} label="Billing" />
+              <NavLink href="/receptionist/records" icon={<FileText />} label="Records" />
             </nav>
           </aside>
 
