@@ -1,0 +1,144 @@
+================================================================================
+                    HOW TO START THE WEBSITE
+================================================================================
+
+THE COMMAND TO RUN:
+
+    npm run dev
+
+OR JUST DOUBLE-CLICK:
+
+    start.bat
+
+THEN OPEN YOUR BROWSER:
+
+    http://localhost:3000
+
+================================================================================
+                    FIRST TIME SETUP (Do this once)
+================================================================================
+
+STEP 1: Install Dependencies
+    npm install
+
+STEP 2: Setup Database (IMPORTANT!)
+
+    Go to: https://supabase.com/dashboard/project/mzxubcgsidqaoodwclwe/sql
+
+    A. Run database-schema.sql
+       - Click "New Query"
+       - Copy ALL contents from database-schema.sql file
+       - Paste and click "Run"
+
+    B. Run rls-policies.sql
+       - Click "New Query"
+       - Copy ALL contents from rls-policies.sql file
+       - Paste and click "Run"
+
+    C. Create Admin User
+       - Click "New Query"
+       - Paste this:
+
+DO $$
+DECLARE new_user_id uuid;
+BEGIN
+  INSERT INTO auth.users (
+    instance_id, id, aud, role, email, encrypted_password,
+    email_confirmed_at, created_at, updated_at,
+    raw_app_meta_data, raw_user_meta_data
+  ) VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    gen_random_uuid(), 'authenticated', 'authenticated',
+    'admin@hospital.com',
+    crypt('Admin@123', gen_salt('bf')),
+    NOW(), NOW(), NOW(),
+    '{"provider":"email","providers":["email"]}', '{}'
+  ) RETURNING id INTO new_user_id;
+
+  INSERT INTO users (id, email, role, first_name, last_name, is_active)
+  VALUES (new_user_id, 'admin@hospital.com', 'super_admin', 'System', 'Administrator', true);
+END $$;
+
+       - Click "Run"
+
+    D. Add Departments
+       - Click "New Query"
+       - Paste this:
+
+INSERT INTO departments (name, description, is_active) VALUES
+('Cardiology', 'Heart care', true),
+('General Medicine', 'General health', true),
+('Pediatrics', 'Child healthcare', true);
+
+       - Click "Run"
+
+STEP 3: Start the Website
+    npm run dev
+
+STEP 4: Open Browser
+    http://localhost:3000
+
+================================================================================
+                    WHAT YOU CAN DO
+================================================================================
+
+1. REGISTER AS PATIENT
+   - Click "Register" button on home page
+   - Fill in the form
+   - Create your account
+
+2. LOGIN AS ADMIN
+   - Click "Login" button
+   - Email: admin@hospital.com
+   - Password: Admin@123
+
+3. BOOK APPOINTMENTS
+   - Login as patient
+   - Click "Book Appointment"
+   - Select department, doctor, date, time
+
+4. VIEW MEDICAL RECORDS
+   - Login as patient
+   - Click "Medical Records"
+
+5. VIEW BILLING
+   - Login as patient
+   - Click "Billing"
+
+================================================================================
+                    EVERYTHING IS WORKING
+================================================================================
+
+✅ Home page with green theme
+✅ Register button is clickable
+✅ Login button is clickable
+✅ Patient registration works
+✅ Admin login works
+✅ Patient dashboard
+✅ Appointment booking
+✅ Medical records
+✅ Billing system
+✅ Doctor dashboard
+✅ Admin dashboard
+
+================================================================================
+                    TROUBLESHOOTING
+================================================================================
+
+If you see errors:
+1. Make sure you ran ALL the SQL queries in Supabase
+2. Check that database tables exist in Supabase Dashboard
+3. Verify .env.local has correct Supabase URL and key
+4. Try: npm install (again)
+5. Try: Close terminal and run npm run dev again
+
+================================================================================
+                    THAT'S IT!
+================================================================================
+
+Your Hospital Management System is ready to use!
+
+Just run: npm run dev
+Then open: http://localhost:3000
+
+Enjoy! 🏥✨
