@@ -93,6 +93,34 @@ export default function AdminDoctorsPage() {
     }
   }
 
+  async function generateUniqueStaffNumber(): Promise<string> {
+    let attempts = 0
+    const maxAttempts = 10
+    
+    while (attempts < maxAttempts) {
+      // Generate a random staff number
+      const randomNum = Math.floor(100000 + Math.random() * 900000)
+      const staffNumber = `DOC${randomNum}`
+      
+      // Check if it exists
+      const { data, error } = await supabase
+        .from('staff')
+        .select('staff_number')
+        .eq('staff_number', staffNumber)
+        .single()
+      
+      // If no data found (error PGRST116), the number is unique
+      if (error && error.code === 'PGRST116') {
+        return staffNumber
+      }
+      
+      attempts++
+    }
+    
+    // Fallback to timestamp-based with more entropy
+    return `DOC${Date.now()}${Math.floor(Math.random() * 1000)}`
+  }
+
   async function handleCreateDoctor(e: React.FormEvent) {
     e.preventDefault()
     setFormLoading(true)
@@ -100,8 +128,8 @@ export default function AdminDoctorsPage() {
     setFormSuccess('')
 
     try {
-      // Generate staff number
-      const staffNumber = 'DOC' + Date.now().toString().slice(-6)
+      // Generate unique staff number
+      const staffNumber = await generateUniqueStaffNumber()
 
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -133,22 +161,28 @@ export default function AdminDoctorsPage() {
           phone: formData.phone || null,
         })
 
-      if (profileError) throw profileError
+      if (profileError) {
+        console.error('Profile creation error:', profileError)
+        throw new Error(`Failed to create user profile: ${profileError.message}`)
+      }
 
-      // Create staff record
+      // Create staff record with all required fields
       const { error: staffError } = await supabase
         .from('staff')
         .insert({
           user_id: authData.user.id,
           staff_number: staffNumber,
-          specialization: formData.specialization,
-          license_number: formData.licenseNumber,
+          specialization: formData.specialization || 'General Practice',
+          license_number: formData.licenseNumber || `LIC${Date.now()}`,
           consultation_fee: parseFloat(formData.consultationFee) || 0,
           qualification: formData.qualification || null,
           experience_years: parseInt(formData.experienceYears) || 0,
         })
 
-      if (staffError) throw staffError
+      if (staffError) {
+        console.error('Staff creation error:', staffError)
+        throw new Error(`Failed to create staff record: ${staffError.message}`)
+      }
 
       setFormSuccess(`Doctor created successfully! Staff Number: ${staffNumber}`)
       
