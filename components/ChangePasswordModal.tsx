@@ -54,9 +54,6 @@ export default function ChangePasswordModal({ isOpen, onClose, isRequired = fals
       setSuccess(true)
       setTimeout(() => {
         onClose()
-        if (isRequired) {
-          window.location.reload()
-        }
       }, 1500)
 
     } catch (error: any) {

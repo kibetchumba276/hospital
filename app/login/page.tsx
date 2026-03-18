@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Heart } from 'lucide-react'
+import ChangePasswordModal from '@/components/ChangePasswordModal'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -15,6 +16,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -33,10 +36,10 @@ export default function LoginPage() {
         // Wait for session to be fully established
         await new Promise(resolve => setTimeout(resolve, 500))
 
-        // Get user role
+        // Get user role and password change status
         const { data: userData, error: userError } = await supabase
           .from('users')
-          .select('role')
+          .select('role, must_change_password')
           .eq('id', data.user.id)
           .single()
 
@@ -51,6 +54,13 @@ export default function LoginPage() {
           }
           
           await supabase.auth.signOut()
+          return
+        }
+
+        // Check if user must change password
+        if (userData?.must_change_password) {
+          setUserRole(userData.role)
+          setShowPasswordModal(true)
           return
         }
 
@@ -79,7 +89,34 @@ export default function LoginPage() {
     }
   }
 
+  function handlePasswordChangeComplete() {
+    setShowPasswordModal(false)
+    
+    // Redirect based on role after password change
+    switch (userRole) {
+      case 'super_admin':
+        router.replace('/admin')
+        break
+      case 'doctor':
+        router.replace('/doctor')
+        break
+      case 'receptionist':
+        router.replace('/receptionist')
+        break
+      case 'patient':
+      default:
+        router.replace('/patient')
+        break
+    }
+  }
+
   return (
+    <>
+      <ChangePasswordModal 
+        isOpen={showPasswordModal} 
+        onClose={handlePasswordChangeComplete}
+        isRequired={true}
+      />
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-white flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
@@ -145,5 +182,6 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </div>
+    </>
   )
 }
