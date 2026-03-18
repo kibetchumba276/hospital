@@ -5,31 +5,29 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ArrowLeft, Calendar, Clock } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, User } from 'lucide-react'
 import Link from 'next/link'
 
 export default function BookAppointmentPage() {
   const router = useRouter()
   const [departments, setDepartments] = useState<any[]>([])
   const [selectedDepartment, setSelectedDepartment] = useState('')
-  const [selectedDate, setSelectedDate] = useState('')
-  const [availableSlots, setAvailableSlots] = useState<any[]>([])
-  const [selectedSlot, setSelectedSlot] = useState<any>(null)
   const [reason, setReason] = useState('')
   const [loading, setLoading] = useState(false)
+  const [searching, setSearching] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [nextAvailableSlot, setNextAvailableSlot] = useState<any>(null)
 
   useEffect(() => {
     loadDepartments()
   }, [])
 
   useEffect(() => {
-    if (selectedDepartment && selectedDate) {
-      findAvailableSlots()
+    if (selectedDepartment) {
+      findNextAvailableSlot()
     }
-  }, [selectedDepartment, selectedDate])
+  }, [selectedDepartment])
 
   async function loadDepartments() {
     try {
@@ -46,67 +44,105 @@ export default function BookAppointmentPage() {
     }
   }
 
-  async function findAvailableSlots() {
-    try {
-      setAvailableSlots([])
-      setSelectedSlot(null)
+  async function findNextAvailableSlot() {
+    setSearching(true)
+    setNextAvailableSlot(null)
+    setError('')
 
+    try {
       // Get all staff in this department
-      const { data: staffData } = await supabase
+      const { data: staffData, error: staffError } = await supabase
         .from('staff')
         .select(`
           id,
-          user_id,
-          users!staff_user_id_fkey(first_name, last_name, role)
+          user_id
         `)
         .eq('department_id', selectedDepartment)
 
+      if (staffError) throw staffError
+
       if (!staffData || staffData.length === 0) {
-        setError('No staff available in this department')
+        setError('No staff available in this department. Please contact admin.')
+        setSearching(false)
         return
       }
 
-      // Get all appointments for this date and department
-      const staffIds = staffData.map(s => s.id)
-      const { data: appointments } = await supabase
-        .from('appointments')
-        .select('doctor_id, appointment_time')
-        .in('doctor_id', staffIds)
-        .eq('appointment_date', selectedDate)
-        .in('status', ['scheduled', 'confirmed', 'checked_in'])
+      // Get user details for staff
+      const userIds = staffData.map(s => s.user_id)
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, role')
+        .in('id', userIds)
 
-      // Generate time slots from 9 AM to 5 PM
-      const slots = []
-      for (let hour = 9; hour < 17; hour++) {
-        for (let minute of [0, 30]) {
-          const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`
+      // Combine staff with user data
+      const staffWithUsers = staffData.map(staff => {
+        const user = usersData?.find(u => u.id === staff.user_id)
+        return {
+          ...staff,
+          user: user || { first_name: 'Unknown', last_name: 'Staff', role: 'staff' }
+        }
+      })
+
+      // Start searching from today
+      const today = new Date()
+      const maxDaysToSearch = 30 // Search up to 30 days ahead
+      
+      for (let dayOffset = 0; dayOffset < maxDaysToSearch; dayOffset++) {
+        const searchDate = new Date(today)
+        searchDate.setDate(today.getDate() + dayOffset)
+        const dateStr = searchDate.toISOString().split('T')[0]
+
+        // Get all appointments for this date
+        const staffIds = staffWithUsers.map(s => s.id)
+        const { data: appointments } = await supabase
+          .from('appointments')
+          .select('doctor_id, appointment_time')
+          .in('doctor_id', staffIds)
+          .eq('appointment_date', dateStr)
+          .in('status', ['scheduled', 'confirmed', 'checked_in'])
+
+        // Working hours: 8 AM to 5 PM (each appointment is 1 hour)
+        // Last appointment starts at 4 PM (ends at 5 PM)
+        for (let hour = 8; hour < 17; hour++) {
+          const timeStr = `${hour.toString().padStart(2, '0')}:00:00`
           
           // Find available staff for this time slot
-          const availableStaff = staffData.filter(staff => {
+          for (const staff of staffWithUsers) {
             const isBooked = appointments?.some(
               apt => apt.doctor_id === staff.id && apt.appointment_time === timeStr
             )
-            return !isBooked
-          })
 
-          if (availableStaff.length > 0) {
-            // Pick the first available staff member
-            const assignedStaff = availableStaff[0]
-            slots.push({
-              time: timeStr,
-              staffId: assignedStaff.id,
-              staffName: `${assignedStaff.users.first_name} ${assignedStaff.users.last_name}`,
-              staffRole: assignedStaff.users.role
-            })
+            if (!isBooked) {
+              // Found available slot!
+              setNextAvailableSlot({
+                date: dateStr,
+                time: timeStr,
+                staffId: staff.id,
+                staffName: `${staff.user.first_name} ${staff.user.last_name}`,
+                staffRole: staff.user.role,
+                displayDate: searchDate.toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                }),
+                displayTime: `${hour}:00 ${hour < 12 ? 'AM' : 'PM'}`
+              })
+              setSearching(false)
+              return
+            }
           }
         }
       }
 
-      setAvailableSlots(slots)
-      setError('')
-    } catch (error) {
-      console.error('Error finding slots:', error)
-      setError('Failed to load available slots')
+      // If we get here, no slots found in 30 days
+      setError('No available appointments in the next 30 days. Please contact the hospital.')
+      setSearching(false)
+
+    } catch (error: any) {
+      console.error('Error finding slot:', error)
+      setError('Failed to find available appointment. Please try again.')
+      setSearching(false)
     }
   }
 
@@ -128,15 +164,15 @@ export default function BookAppointmentPage() {
 
       if (!patientData) throw new Error('Patient profile not found')
 
-      if (!selectedSlot) throw new Error('Please select a time slot')
+      if (!nextAvailableSlot) throw new Error('No appointment slot available')
 
       const { error: insertError } = await supabase
         .from('appointments')
         .insert({
           patient_id: patientData.id,
-          doctor_id: selectedSlot.staffId,
-          appointment_date: selectedDate,
-          appointment_time: selectedSlot.time,
+          doctor_id: nextAvailableSlot.staffId,
+          appointment_date: nextAvailableSlot.date,
+          appointment_time: nextAvailableSlot.time,
           reason_for_visit: reason,
           status: 'scheduled',
         })
@@ -167,7 +203,7 @@ export default function BookAppointmentPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Appointment Details</CardTitle>
+          <CardTitle>Book Appointment</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -192,11 +228,11 @@ export default function BookAppointmentPage() {
                 value={selectedDepartment}
                 onChange={(e) => {
                   setSelectedDepartment(e.target.value)
-                  setAvailableSlots([])
-                  setSelectedSlot(null)
+                  setNextAvailableSlot(null)
                 }}
                 className="w-full h-10 px-3 border border-gray-300 rounded-md"
                 required
+                disabled={loading || searching}
               >
                 <option value="">Select Service Type</option>
                 {departments.map((dept) => (
@@ -206,75 +242,55 @@ export default function BookAppointmentPage() {
                 ))}
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                System will automatically assign an available staff member
+                System will automatically find the next available appointment
               </p>
             </div>
 
-            {selectedDepartment && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="inline h-4 w-4 mr-1" />
-                  Appointment Date
-                </label>
-                <Input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => {
-                    setSelectedDate(e.target.value)
-                    setSelectedSlot(null)
-                  }}
-                  min={new Date().toISOString().split('T')[0]}
-                  required
-                />
-              </div>
-            )}
-
-            {availableSlots.length > 0 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Clock className="inline h-4 w-4 mr-1" />
-                  Available Time Slots
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {availableSlots.map((slot) => (
-                    <button
-                      key={slot.time}
-                      type="button"
-                      onClick={() => setSelectedSlot(slot)}
-                      className={`p-3 rounded-md border text-sm ${
-                        selectedSlot?.time === slot.time
-                          ? 'bg-primary-600 text-white border-primary-600'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-primary-600'
-                      }`}
-                    >
-                      <div className="font-semibold">{slot.time.substring(0, 5)}</div>
-                      <div className="text-xs mt-1 opacity-90">
-                        {slot.staffName}
-                      </div>
-                    </button>
-                  ))}
+            {searching && (
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded-md">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  <p className="text-sm text-blue-800">
+                    Searching for next available appointment...
+                  </p>
                 </div>
               </div>
             )}
 
-            {selectedDate && selectedDepartment && availableSlots.length === 0 && (
-              <p className="text-sm text-gray-500 mt-2">
-                No available slots for this date. Please try another date.
-              </p>
-            )}
+            {nextAvailableSlot && !searching && (
+              <div className="bg-green-50 border border-green-200 p-4 rounded-md space-y-3">
+                <p className="text-sm font-semibold text-green-900">
+                  ✓ Next Available Appointment Found!
+                </p>
+                
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3">
+                    <Calendar className="h-5 w-5 text-green-700 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-green-900">Date</p>
+                      <p className="text-sm text-green-700">{nextAvailableSlot.displayDate}</p>
+                    </div>
+                  </div>
 
-            {selectedSlot && (
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-md">
-                <p className="text-sm font-medium text-blue-900">Selected Appointment:</p>
-                <p className="text-sm text-blue-700 mt-1">
-                  Date: {new Date(selectedDate).toLocaleDateString()}
-                </p>
-                <p className="text-sm text-blue-700">
-                  Time: {selectedSlot.time.substring(0, 5)}
-                </p>
-                <p className="text-sm text-blue-700">
-                  Assigned Staff: {selectedSlot.staffName} ({selectedSlot.staffRole})
-                </p>
+                  <div className="flex items-start gap-3">
+                    <Clock className="h-5 w-5 text-green-700 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-green-900">Time</p>
+                      <p className="text-sm text-green-700">{nextAvailableSlot.displayTime}</p>
+                      <p className="text-xs text-green-600">Duration: 1 hour</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <User className="h-5 w-5 text-green-700 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-green-900">Assigned Staff</p>
+                      <p className="text-sm text-green-700">
+                        {nextAvailableSlot.staffName} ({nextAvailableSlot.staffRole})
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -288,15 +304,16 @@ export default function BookAppointmentPage() {
                 className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-md"
                 placeholder="Describe your symptoms or reason for visit..."
                 required
+                disabled={loading}
               />
             </div>
 
             <Button
               type="submit"
               className="w-full"
-              disabled={loading || !selectedSlot}
+              disabled={loading || searching || !nextAvailableSlot}
             >
-              {loading ? 'Booking...' : 'Book Appointment'}
+              {loading ? 'Booking...' : searching ? 'Finding Slot...' : 'Confirm Appointment'}
             </Button>
           </form>
         </CardContent>
