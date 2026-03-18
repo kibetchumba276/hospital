@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Heart, Calendar, Users, FileText, LogOut, Stethoscope } from 'lucide-react'
+import { 
+  Heart, Calendar, Users, FileText, LogOut, Stethoscope,
+  Pill, TestTube, Bed, Receipt, ClipboardList, Activity
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function DoctorLayout({ children }: { children: React.ReactNode }) {
@@ -74,7 +77,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Heart className="h-8 w-8 text-primary-600" />
-            <span className="text-2xl font-bold text-primary-700">MediCare</span>
+            <span className="text-2xl font-bold text-primary-700">MediCare HMS</span>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-gray-700">
@@ -91,11 +94,32 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
       <div className="container mx-auto px-4 py-8">
         <div className="grid md:grid-cols-4 gap-6">
           <aside className="md:col-span-1">
-            <nav className="bg-white rounded-lg shadow-sm p-4 space-y-2">
-              <NavLink href="/doctor" icon={<Stethoscope />} label="Dashboard" />
-              <NavLink href="/doctor/appointments" icon={<Calendar />} label="Appointments" />
-              <NavLink href="/doctor/patients" icon={<Users />} label="Patients" />
-              <NavLink href="/doctor/records" icon={<FileText />} label="Medical Records" />
+            <nav className="bg-white rounded-lg shadow-sm p-4 space-y-1">
+              <div className="pb-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">Overview</p>
+                <NavLink href="/doctor" icon={<Stethoscope />} label="Dashboard" />
+              </div>
+              
+              <div className="pt-2 pb-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">Patient Care</p>
+                <NavLink href="/doctor/patients" icon={<Users />} label="My Patients" />
+                <NavLink href="/doctor/appointments" icon={<Calendar />} label="Appointments" />
+              </div>
+              
+              <div className="pt-2 pb-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">Clinical</p>
+                <NavLink href="/doctor/diagnose" icon={<ClipboardList />} label="Diagnose" />
+                <NavLink href="/doctor/prescriptions" icon={<Pill />} label="Prescriptions" />
+                <NavLink href="/doctor/lab-orders" icon={<TestTube />} label="Lab Orders" />
+                <NavLink href="/doctor/vitals" icon={<Activity />} label="Vitals" />
+                <NavLink href="/doctor/records" icon={<FileText />} label="Medical Records" />
+              </div>
+              
+              <div className="pt-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">Operations</p>
+                <NavLink href="/doctor/admissions" icon={<Bed />} label="Admissions" />
+                <NavLink href="/doctor/billing" icon={<Receipt />} label="Billing" />
+              </div>
             </nav>
           </aside>
 
@@ -112,7 +136,7 @@ function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; l
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 px-4 py-3 rounded-md hover:bg-primary-50 text-gray-700 hover:text-primary-700 transition-colors"
+      className="flex items-center gap-3 px-4 py-2 rounded-md hover:bg-primary-50 text-gray-700 hover:text-primary-700 transition-colors text-sm"
     >
       {icon}
       <span>{label}</span>
