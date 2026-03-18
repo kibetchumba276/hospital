@@ -6,150 +6,107 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock } from 'lucide-react'
 import Link from 'next/link'
 
 export default function BookAppointmentPage() {
   const router = useRouter()
-  const [specializations, setSpecializations] = useState<string[]>([])
-  const [doctors, setDoctors] = useState<any[]>([])
-  const [availableSlots, setAvailableSlots] = useState<any[]>([])
-  const [selectedSpecialization, setSelectedSpecialization] = useState('')
-  const [selectedDoctor, setSelectedDoctor] = useState('')
+  const [departments, setDepartments] = useState<any[]>([])
+  const [selectedDepartment, setSelectedDepartment] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
-  const [selectedTime, setSelectedTime] = useState('')
+  const [availableSlots, setAvailableSlots] = useState<any[]>([])
+  const [selectedSlot, setSelectedSlot] = useState<any>(null)
   const [reason, setReason] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
   useEffect(() => {
-    loadSpecializations()
+    loadDepartments()
   }, [])
 
   useEffect(() => {
-    if (selectedSpecialization) {
-      loadDoctors()
+    if (selectedDepartment && selectedDate) {
+      findAvailableSlots()
     }
-  }, [selectedSpecialization])
+  }, [selectedDepartment, selectedDate])
 
-  useEffect(() => {
-    if (selectedDoctor && selectedDate) {
-      loadAvailableSlots()
-    }
-  }, [selectedDoctor, selectedDate])
-
-  async function loadSpecializations() {
+  async function loadDepartments() {
     try {
-      // Get all active departments
-      const { data: deptData, error: deptError } = await supabase
+      const { data, error } = await supabase
         .from('departments')
-        .select('id, name')
+        .select('id, name, description')
         .eq('is_active', true)
         .order('name')
 
-      if (deptError) {
-        console.error('Error loading departments:', deptError)
-        return
-      }
-
-      if (!deptData || deptData.length === 0) {
-        console.log('No departments found')
-        return
-      }
-
-      console.log('Available departments:', deptData.map(d => d.name))
-      setSpecializations(deptData.map(d => d.name))
+      if (error) throw error
+      setDepartments(data || [])
     } catch (error) {
-      console.error('Error in loadSpecializations:', error)
+      console.error('Error loading departments:', error)
     }
   }
 
-  async function loadDoctors() {
+  async function findAvailableSlots() {
     try {
-      // Get department ID from selected specialization
-      const { data: deptData } = await supabase
-        .from('departments')
-        .select('id')
-        .eq('name', selectedSpecialization)
-        .single()
+      setAvailableSlots([])
+      setSelectedSlot(null)
 
-      if (!deptData) {
-        console.log('Department not found')
-        return
-      }
-
-      // Get staff in this department
-      const { data, error } = await supabase
+      // Get all staff in this department
+      const { data: staffData } = await supabase
         .from('staff')
-        .select('id, user_id, consultation_fee')
-        .eq('department_id', deptData.id)
+        .select(`
+          id,
+          user_id,
+          users!staff_user_id_fkey(first_name, last_name, role)
+        `)
+        .eq('department_id', selectedDepartment)
 
-      if (error) {
-        console.error('Error loading doctors:', error)
+      if (!staffData || staffData.length === 0) {
+        setError('No staff available in this department')
         return
       }
 
-      if (!data || data.length === 0) {
-        setDoctors([])
-        return
-      }
-
-      // Get user details for each doctor
-      const userIds = data.map(d => d.user_id)
-      const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select('id, first_name, last_name, role, is_active')
-        .in('id', userIds)
-        .eq('role', 'doctor')
-        .eq('is_active', true)
-
-      if (usersError) {
-        console.error('Error loading user details:', usersError)
-        return
-      }
-
-      // Combine staff and user data
-      const doctorsWithUsers = data.map(staff => {
-        const user = usersData?.find(u => u.id === staff.user_id)
-        return {
-          ...staff,
-          users: user || { first_name: 'Unknown', last_name: 'Doctor' }
-        }
-      }).filter(d => d.users.first_name !== 'Unknown')
-
-      console.log('Loaded doctors:', doctorsWithUsers)
-      setDoctors(doctorsWithUsers)
-    } catch (error) {
-      console.error('Error in loadDoctors:', error)
-    }
-  }
-
-  async function loadAvailableSlots() {
-    try {
-      // Get existing appointments
+      // Get all appointments for this date and department
+      const staffIds = staffData.map(s => s.id)
       const { data: appointments } = await supabase
         .from('appointments')
-        .select('appointment_time')
-        .eq('doctor_id', selectedDoctor)
+        .select('doctor_id, appointment_time')
+        .in('doctor_id', staffIds)
         .eq('appointment_date', selectedDate)
         .in('status', ['scheduled', 'confirmed', 'checked_in'])
 
-      // Generate slots from 9 AM to 5 PM
+      // Generate time slots from 9 AM to 5 PM
       const slots = []
       for (let hour = 9; hour < 17; hour++) {
         for (let minute of [0, 30]) {
           const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`
-          const isBooked = appointments?.some((apt) => apt.appointment_time === timeStr)
           
-          if (!isBooked) {
-            slots.push({ time: timeStr, available: true })
+          // Find available staff for this time slot
+          const availableStaff = staffData.filter(staff => {
+            const isBooked = appointments?.some(
+              apt => apt.doctor_id === staff.id && apt.appointment_time === timeStr
+            )
+            return !isBooked
+          })
+
+          if (availableStaff.length > 0) {
+            // Pick the first available staff member
+            const assignedStaff = availableStaff[0]
+            slots.push({
+              time: timeStr,
+              staffId: assignedStaff.id,
+              staffName: `${assignedStaff.users.first_name} ${assignedStaff.users.last_name}`,
+              staffRole: assignedStaff.users.role
+            })
           }
         }
       }
 
       setAvailableSlots(slots)
+      setError('')
     } catch (error) {
-      console.error('Error loading slots:', error)
+      console.error('Error finding slots:', error)
+      setError('Failed to load available slots')
     }
   }
 
@@ -157,6 +114,7 @@ export default function BookAppointmentPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccess('')
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -170,20 +128,25 @@ export default function BookAppointmentPage() {
 
       if (!patientData) throw new Error('Patient profile not found')
 
+      if (!selectedSlot) throw new Error('Please select a time slot')
+
       const { error: insertError } = await supabase
         .from('appointments')
         .insert({
           patient_id: patientData.id,
-          doctor_id: selectedDoctor,
+          doctor_id: selectedSlot.staffId,
           appointment_date: selectedDate,
-          appointment_time: selectedTime,
+          appointment_time: selectedSlot.time,
           reason_for_visit: reason,
           status: 'scheduled',
         })
 
       if (insertError) throw insertError
 
-      router.push('/patient/appointments')
+      setSuccess('Appointment booked successfully!')
+      setTimeout(() => {
+        router.push('/patient/appointments')
+      }, 2000)
     } catch (error: any) {
       setError(error.message || 'Failed to book appointment')
     } finally {
@@ -199,7 +162,7 @@ export default function BookAppointmentPage() {
           Back to Appointments
         </Link>
         <h1 className="text-3xl font-bold text-gray-900">Book New Appointment</h1>
-        <p className="text-gray-600 mt-1">Schedule your visit with our doctors</p>
+        <p className="text-gray-600 mt-1">Select service type and we'll assign an available staff member</p>
       </div>
 
       <Card>
@@ -214,57 +177,43 @@ export default function BookAppointmentPage() {
               </div>
             )}
 
+            {success && (
+              <div className="bg-green-50 text-green-600 p-3 rounded-md text-sm">
+                {success}
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Department/Specialization
+                <Calendar className="inline h-4 w-4 mr-1" />
+                Service Type / Department
               </label>
               <select
-                value={selectedSpecialization}
+                value={selectedDepartment}
                 onChange={(e) => {
-                  setSelectedSpecialization(e.target.value)
-                  setSelectedDoctor('')
+                  setSelectedDepartment(e.target.value)
                   setAvailableSlots([])
+                  setSelectedSlot(null)
                 }}
                 className="w-full h-10 px-3 border border-gray-300 rounded-md"
                 required
               >
-                <option value="">Select Department</option>
-                {specializations.map((spec) => (
-                  <option key={spec} value={spec}>
-                    {spec}
+                <option value="">Select Service Type</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                System will automatically assign an available staff member
+              </p>
             </div>
 
-            {selectedSpecialization && (
+            {selectedDepartment && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Doctor
-                </label>
-                <select
-                  value={selectedDoctor}
-                  onChange={(e) => {
-                    setSelectedDoctor(e.target.value)
-                    setAvailableSlots([])
-                  }}
-                  className="w-full h-10 px-3 border border-gray-300 rounded-md"
-                  required
-                >
-                  <option value="">Select Doctor</option>
-                  {doctors.map((doctor) => (
-                    <option key={doctor.id} value={doctor.id}>
-                      Dr. {doctor.users.first_name} {doctor.users.last_name}
-                      {doctor.consultation_fee > 0 && ` - $${doctor.consultation_fee}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {selectedDoctor && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Calendar className="inline h-4 w-4 mr-1" />
                   Appointment Date
                 </label>
                 <Input
@@ -272,7 +221,7 @@ export default function BookAppointmentPage() {
                   value={selectedDate}
                   onChange={(e) => {
                     setSelectedDate(e.target.value)
-                    setSelectedTime('')
+                    setSelectedSlot(null)
                   }}
                   min={new Date().toISOString().split('T')[0]}
                   required
@@ -283,24 +232,49 @@ export default function BookAppointmentPage() {
             {availableSlots.length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Clock className="inline h-4 w-4 mr-1" />
                   Available Time Slots
                 </label>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {availableSlots.map((slot) => (
                     <button
                       key={slot.time}
                       type="button"
-                      onClick={() => setSelectedTime(slot.time)}
-                      className={`p-2 rounded-md border text-sm ${
-                        selectedTime === slot.time
+                      onClick={() => setSelectedSlot(slot)}
+                      className={`p-3 rounded-md border text-sm ${
+                        selectedSlot?.time === slot.time
                           ? 'bg-primary-600 text-white border-primary-600'
                           : 'bg-white text-gray-700 border-gray-300 hover:border-primary-600'
                       }`}
                     >
-                      {slot.time.substring(0, 5)}
+                      <div className="font-semibold">{slot.time.substring(0, 5)}</div>
+                      <div className="text-xs mt-1 opacity-90">
+                        {slot.staffName}
+                      </div>
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {selectedDate && selectedDepartment && availableSlots.length === 0 && (
+              <p className="text-sm text-gray-500 mt-2">
+                No available slots for this date. Please try another date.
+              </p>
+            )}
+
+            {selectedSlot && (
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded-md">
+                <p className="text-sm font-medium text-blue-900">Selected Appointment:</p>
+                <p className="text-sm text-blue-700 mt-1">
+                  Date: {new Date(selectedDate).toLocaleDateString()}
+                </p>
+                <p className="text-sm text-blue-700">
+                  Time: {selectedSlot.time.substring(0, 5)}
+                </p>
+                <p className="text-sm text-blue-700">
+                  Assigned Staff: {selectedSlot.staffName} ({selectedSlot.staffRole})
+                </p>
               </div>
             )}
 
@@ -320,7 +294,7 @@ export default function BookAppointmentPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={loading || !selectedTime}
+              disabled={loading || !selectedSlot}
             >
               {loading ? 'Booking...' : 'Book Appointment'}
             </Button>
