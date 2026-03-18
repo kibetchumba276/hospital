@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Receipt, Plus } from 'lucide-react'
+import Link from 'next/link'
 
 export default function BillingPage() {
   const [invoices, setInvoices] = useState<any[]>([])
@@ -46,10 +47,12 @@ export default function BillingPage() {
           <h1 className="text-3xl font-bold text-gray-900">Billing & Invoices</h1>
           <p className="text-gray-600 mt-1">Manage patient billing and invoices</p>
         </div>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Invoice
-        </Button>
+        <Link href="/doctor/billing/create">
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Invoice
+          </Button>
+        </Link>
       </div>
 
       <div className="grid gap-4">
