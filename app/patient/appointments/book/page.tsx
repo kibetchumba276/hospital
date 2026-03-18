@@ -50,6 +50,8 @@ export default function BookAppointmentPage() {
     setError('')
 
     try {
+      console.log('🔍 Searching for appointment in department:', selectedDepartment)
+
       // Get all staff in this department
       const { data: staffData, error: staffError } = await supabase
         .from('staff')
@@ -59,20 +61,34 @@ export default function BookAppointmentPage() {
         `)
         .eq('department_id', selectedDepartment)
 
-      if (staffError) throw staffError
+      console.log('📋 Staff query result:', { staffData, staffError })
+
+      if (staffError) {
+        console.error('❌ Staff query error:', staffError)
+        throw new Error(`Database error: ${staffError.message}`)
+      }
 
       if (!staffData || staffData.length === 0) {
-        setError('No staff available in this department. Please contact admin.')
+        console.log('⚠️ No staff found in department')
+        setError('No staff available in this department. Please contact admin to assign staff.')
         setSearching(false)
         return
       }
 
+      console.log(`✅ Found ${staffData.length} staff members`)
+
       // Get user details for staff
       const userIds = staffData.map(s => s.user_id)
-      const { data: usersData } = await supabase
+      const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('id, first_name, last_name, role')
         .in('id', userIds)
+
+      console.log('👥 Users query result:', { usersData, usersError })
+
+      if (usersError) {
+        console.error('❌ Users query error:', usersError)
+      }
 
       // Combine staff with user data
       const staffWithUsers = staffData.map(staff => {
@@ -83,10 +99,14 @@ export default function BookAppointmentPage() {
         }
       })
 
+      console.log('👨‍⚕️ Staff with user details:', staffWithUsers)
+
       // Start searching from today
       const today = new Date()
       const maxDaysToSearch = 30 // Search up to 30 days ahead
       
+      console.log(`📅 Searching ${maxDaysToSearch} days starting from ${today.toDateString()}`)
+
       for (let dayOffset = 0; dayOffset < maxDaysToSearch; dayOffset++) {
         const searchDate = new Date(today)
         searchDate.setDate(today.getDate() + dayOffset)
@@ -101,6 +121,8 @@ export default function BookAppointmentPage() {
           .eq('appointment_date', dateStr)
           .in('status', ['scheduled', 'confirmed', 'checked_in'])
 
+        console.log(`📆 ${dateStr}: ${appointments?.length || 0} existing appointments`)
+
         // Working hours: 8 AM to 5 PM (each appointment is 1 hour)
         // Last appointment starts at 4 PM (ends at 5 PM)
         for (let hour = 8; hour < 17; hour++) {
@@ -114,6 +136,8 @@ export default function BookAppointmentPage() {
 
             if (!isBooked) {
               // Found available slot!
+              console.log(`✅ Found slot: ${dateStr} at ${timeStr} with ${staff.user.first_name}`)
+              
               setNextAvailableSlot({
                 date: dateStr,
                 time: timeStr,
@@ -136,12 +160,13 @@ export default function BookAppointmentPage() {
       }
 
       // If we get here, no slots found in 30 days
+      console.log('⚠️ No slots found in 30 days')
       setError('No available appointments in the next 30 days. Please contact the hospital.')
       setSearching(false)
 
     } catch (error: any) {
-      console.error('Error finding slot:', error)
-      setError('Failed to find available appointment. Please try again.')
+      console.error('❌ Error finding slot:', error)
+      setError(error.message || 'Failed to find available appointment. Please try again.')
       setSearching(false)
     }
   }
